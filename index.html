@@ -1,1 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Address Map Plotter</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
 
+  /* --- Header --- */
+  .header { background: #1a73e8; color: white; padding: 12px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header-controls { display: flex; align-items: center; gap: 10px; }
+  .header-controls label { font-size: 12px; font-weight: 500; opacity: 0.9; }
+  .header-controls select {
+    padding: 5px 10px; border-radius: 5px; border: none; font-size: 13px; font-weight: 500;
+    background: rgba(255,255,255,0.2); color: white; cursor: pointer; outline: none;
+  }
+  .header-controls select option { color: #333; background: white; }
+  .header-controls .btn-settings {
+    padding: 5px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.4);
+    background: transparent; color: white; font-size: 12px; cursor: pointer; font-weight: 500;
+  }
+  .header-controls .btn-settings:hover { background: rgba(255,255,255,0.15); }
+
+  /* --- Layout --- */
+  .container { display: flex; height: calc(100vh - 52px); }
+  .sidebar { width: 380px; min-width: 380px; background: white; overflow-y: auto; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+
+  /* --- API Key Settings --- */
+  .settings-panel { background: #fff8e1; border-bottom: 1px solid #ffe082; display: none; }
+  .settings-panel.visible { display: block; }
+  .settings-panel .settings-inner { padding: 12px 16px; }
+  .settings-panel h3 { font-size: 13px; font-weight: 600; color: #f57f17; margin-bottom: 8px; }
+  .settings-panel .key-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .settings-panel .key-row label { font-size: 11px; font-weight: 600; color: #555; width: 70px; flex-shrink: 0; }
+  .settings-panel .key-row input {
+    flex: 1; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+  }
+  .settings-panel .key-row input:focus { outline: none; border-color: #1a73e8; }
+  .settings-panel .key-hint { font-size: 10px; color: #999; margin-top: 4px; }
+  .settings-panel .btn-save-keys {
+    margin-top: 8px; padding: 5px 14px; border: none; border-radius: 4px;
+    background: #f57f17; color: white; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .settings-panel .btn-save-keys:hover { background: #e65100; }
+
+  /* --- Input Section --- */
+  .input-section { padding: 16px; border-bottom: 1px solid #eee; }
+  .input-section label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 6px; }
+  .input-section textarea {
+    width: 100%; height: 120px; padding: 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 13px; font-family: 'SF Mono', 'Consolas', monospace; resize: vertical; line-height: 1.5;
+  }
+  .input-section textarea:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #1a73e8; color: white; }
+  .btn-primary:hover { background: #1557b0; }
+  .btn-secondary { background: #f0f2f5; color: #333; border: 1px solid #ccc; }
+  .btn-secondary:hover { background: #e2e5e9; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .format-hint { font-size: 11px; color: #888; margin-top: 6px; }
+
+  /* --- Status --- */
+  .status { padding: 10px 16px; font-size: 12px; color: #666; background: #fafafa; border-bottom: 1px solid #eee; display: none; }
+  .status.visible { display: block; }
+  .status .progress-bar { height: 3px; background: #e0e0e0; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .status .progress-fill { height: 100%; background: #1a73e8; border-radius: 2px; transition: width 0.3s; }
+
+  /* --- Address List --- */
+  .list-header { padding: 12px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 1px solid #eee; background: #fafafa; }
+  .address-list { flex: 1; overflow-y: auto; }
+  .address-item {
+    padding: 10px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.1s;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .address-item:hover { background: #f5f8ff; }
+  .address-item.active { background: #e8f0fe; }
+  .address-item .marker-dot {
+    width: 28px; height: 28px; border-radius: 50%; background: #1a73e8; color: white;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .address-item .info { flex: 1; min-width: 0; }
+  .address-item .name { font-size: 14px; font-weight: 600; color: #222; }
+  .address-item .addr { font-size: 12px; color: #666; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .address-item .error-badge { font-size: 11px; color: #d93025; margin-top: 2px; }
+  .address-item .actions { display: flex; gap: 4px; margin-top: 6px; }
+  .address-item .actions .btn-sm {
+    padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid #ccc;
+    background: #f8f8f8; color: #555; cursor: pointer; font-weight: 500;
+  }
+  .address-item .actions .btn-sm:hover { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+  .address-item .actions .btn-sm.btn-sm-danger:hover { background: #fce8e6; border-color: #d93025; color: #d93025; }
+  .edit-form { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .edit-form .edit-row { display: flex; gap: 4px; align-items: center; }
+  .edit-form input {
+    width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+  }
+  .edit-form input:focus { outline: none; border-color: #1a73e8; }
+  .edit-form .edit-actions { display: flex; gap: 4px; margin-top: 2px; }
+  .drag-hint { font-size: 10px; color: #999; margin-top: 2px; font-style: italic; }
+
+  /* --- Map --- */
+  #map { flex: 1; }
+  .leaflet-popup-content { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  .popup-name { font-size: 15px; font-weight: 700; color: #1a73e8; margin-bottom: 4px; }
+  .popup-addr { font-size: 13px; color: #444; }
+  .numbered-icon {
+    background: #1a73e8; color: white; border-radius: 50%; width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+    border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .map-key-warning {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
+    background: #fff3cd; color: #856404; padding: 8px 16px; border-radius: 6px; font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Address Map Plotter</h1>
+  <div class="header-controls">
+    <label>Map:</label>
+    <select id="mapProvider" onchange="switchProvider(this.value)">
+      <option value="google">Google Maps</option>
+      <option value="osm">OpenStreetMap</option>
+      <option value="mapquest">MapQuest</option>
+      <option value="bing">Bing Maps</option>
+    </select>
+    <button class="btn-settings" onclick="toggleSettings()">API Keys</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="sidebar">
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-inner">
+        <h3>API Keys</h3>
+        <div class="key-row">
+          <label>Google</label>
+          <input type="text" id="keyGoogle" placeholder="Google Maps API Key">
+        </div>
+        <div class="key-row">
+          <label>MapQuest</label>
+          <input type="text" id="keyMapquest" placeholder="MapQuest API Key">
+        </div>
+        <div class="key-row">
+          <label>Bing</label>
+          <input type="text" id="keyBing" placeholder="Bing Maps API Key">
+        </div>
+        <div class="key-hint">Keys are saved in your browser's local storage. OpenStreetMap needs no key.</div>
+        <button class="btn-save-keys" onclick="saveKeys()">Save & Apply</button>
+      </div>
+    </div>
+    <div class="input-section">
+      <label>Paste addresses (colon-separated entries)</label>
+      <textarea id="dataInput" placeholder="street, city, zip, name: street, city, zip, name: ..."></textarea>
+      <div class="format-hint">Format: <code>street, city, zip, name</code> — entries separated by <code>:</code></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="plotBtn" onclick="processInput()">Plot on Map</button>
+        <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+      </div>
+    </div>
+    <div class="status" id="status">
+      <span id="statusText">Geocoding...</span>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <div class="list-header" id="listHeader">Addresses (0)</div>
+    <div class="address-list" id="addressList"></div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script>
+// ============================================================
+//  MAP SETUP & TILE PROVIDERS
+// ============================================================
+const map = L.map('map').setView([40.7580, -73.8330], 12);
+let currentLayer = null;
+let currentProvider = 'google';
+
+// Read API keys from query string (e.g. ?google_key=XXX&mapquest_key=YYY&bing_key=ZZZ)
+const urlParams = new URLSearchParams(window.location.search);
+const qsKeys = {
+  google: urlParams.get('google_key') || urlParams.get('key') || '',
+  mapquest: urlParams.get('mapquest_key') || '',
+  bing: urlParams.get('bing_key') || ''
+};
+
+// Load saved keys (query string takes priority over localStorage)
+function loadKeys() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('mapApiKeys') || '{}');
+    return {
+      google: qsKeys.google || stored.google || '',
+      mapquest: qsKeys.mapquest || stored.mapquest || '',
+      bing: qsKeys.bing || stored.bing || ''
+    };
+  } catch { return { ...qsKeys }; }
+}
+function saveKeys() {
+  const keys = {
+    google: document.getElementById('keyGoogle').value.trim(),
+    mapquest: document.getElementById('keyMapquest').value.trim(),
+    bing: document.getElementById('keyBing').value.trim()
+  };
+  localStorage.setItem('mapApiKeys', JSON.stringify(keys));
+  localStorage.setItem('mapProvider', currentProvider);
+  switchProvider(currentProvider);
+  toggleSettings();
+}
+function populateKeyInputs() {
+  const keys = loadKeys();
+  document.getElementById('keyGoogle').value = keys.google || '';
+  document.getElementById('keyMapquest').value = keys.mapquest || '';
+  document.getElementById('keyBing').value = keys.bing || '';
+}
+
+// Tile layer factories
+function createOsmLayer() {
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  });
+}
+
+function createGoogleLayer(apiKey) {
+  // Use Google's tile server; works with or without key for basic road tiles
+  // With key: higher quota. Without key: limited but functional for development.
+  const base = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+  return L.tileLayer(base, {
+    subdomains: '0123',
+    attribution: '&copy; Google Maps',
+    maxZoom: 20
+  });
+}
+
+function createMapquestLayer(apiKey) {
+  if (!apiKey) return null;
+  return L.tileLayer('https://{s}.tile.thunderforest.com/neighbourhood/{z}/{x}/{y}.png?apikey=' + apiKey, {
+    subdomains: 'abc',
+    attribution: '&copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, &copy; OpenStreetMap contributors',
+    maxZoom: 19
+  });
+}
+
+function createBingLayer(apiKey) {
+  if (!apiKey) return null;
+  // Bing Maps tile URL pattern — we fetch the metadata to get the tile URL
+  return new BingTileLayer(apiKey);
+}
+
+// Lightweight Bing Maps tile layer for Leaflet
+class BingTileLayer {
+  constructor(apiKey) {
+    this._apiKey = apiKey;
+    this._layer = null;
+    this._ready = false;
+  }
+  async addTo(map) {
+    try {
+      const res = await fetch(`https://dev.virtualearth.net/REST/v1/Imagery/Metadata/RoadOnDemand?key=${this._apiKey}&output=json`);
+      const data = await res.json();
+      const resource = data?.resourceSets?.[0]?.resources?.[0];
+      if (!resource) return null;
+      let tileUrl = resource.imageUrl
+        .replace('{subdomain}', '{s}')
+        .replace('{culture}', 'en-US');
+      // Bing uses quadkey, convert from {z}/{x}/{y}
+      this._layer = L.tileLayer(tileUrl, {
+        subdomains: resource.imageUrlSubdomains,
+        attribution: '&copy; Microsoft Bing Maps',
+        maxZoom: 19
+      });
+      // Bing uses quadkey system — override getTileUrl
+      this._layer.getTileUrl = function(coords) {
+        const z = coords.z;
+        const x = coords.x;
+        const y = coords.y;
+        let quadkey = '';
+        for (let i = z; i > 0; i--) {
+          let digit = 0;
+          const mask = 1 << (i - 1);
+          if ((x & mask) !== 0) digit++;
+          if ((y & mask) !== 0) digit += 2;
+          quadkey += digit;
+        }
+        return resource.imageUrl
+          .replace('{subdomain}', resource.imageUrlSubdomains[Math.abs(x + y) % resource.imageUrlSubdomains.length])
+          .replace('{quadkey}', quadkey)
+          .replace('{culture}', 'en-US');
+      };
+      this._layer.addTo(map);
+      return this._layer;
+    } catch (e) {
+      console.error('Bing tile load failed:', e);
+      return null;
+    }
+  }
+}
+
+function switchProvider(provider) {
+  currentProvider = provider;
+  document.getElementById('mapProvider').value = provider;
+  localStorage.setItem('mapProvider', provider);
+  const keys = loadKeys();
+
+  // Remove current layer
+  if (currentLayer) {
+    if (currentLayer._layer) map.removeLayer(currentLayer._layer); // Bing wrapper
+    else map.removeLayer(currentLayer);
+    currentLayer = null;
+  }
+  // Remove any warning
+  document.querySelectorAll('.map-key-warning').forEach(el => el.remove());
+
+  if (provider === 'osm') {
+    currentLayer = createOsmLayer().addTo(map);
+  } else if (provider === 'google') {
+    currentLayer = createGoogleLayer(keys.google).addTo(map);
+  } else if (provider === 'mapquest') {
+    if (!keys.mapquest) {
+      showKeyWarning('MapQuest requires an API key. Click "API Keys" to add one. Falling back to OpenStreetMap.');
+      currentLayer = createOsmLayer().addTo(map);
+      return;
+    }
+    currentLayer = createMapquestLayer(keys.mapquest).addTo(map);
+  } else if (provider === 'bing') {
+    if (!keys.bing) {
+      showKeyWarning('Bing Maps requires an API key. Click "API Keys" to add one. Falling back to OpenStreetMap.');
+      currentLayer = createOsmLayer().addTo(map);
+      return;
+    }
+    const bing = createBingLayer(keys.bing);
+    currentLayer = bing;
+    bing.addTo(map);
+  }
+}
+
+function showKeyWarning(msg) {
+  const el = document.createElement('div');
+  el.className = 'map-key-warning';
+  el.textContent = msg;
+  document.getElementById('map').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.classList.toggle('visible');
+}
+
+// ============================================================
+//  MARKERS & DATA
+// ============================================================
+let markers = [];
+let entries = [];
+
+const defaultData = ``;
+document.getElementById('dataInput').value = defaultData;
+
+function createNumberedIcon(num) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="numbered-icon">${num}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -18]
+  });
+}
+
+function parseInput(raw) {
+  return raw.split(':').map(s => s.trim()).filter(Boolean).map(entry => {
+    const parts = entry.split(',').map(p => p.trim());
+    if (parts.length < 4) return null;
+    const name = parts[parts.length - 1];
+    const zip = parts[parts.length - 2];
+    const city = parts[parts.length - 3];
+    const street = parts.slice(0, parts.length - 3).join(', ');
+    return { street, city, zip, name, fullAddress: `${street}, ${city}, NY ${zip}` };
+  }).filter(Boolean);
+}
+
+// ============================================================
+//  GEOCODING (Census Bureau + Nominatim fallback)
+// ============================================================
+async function geocodeCensus(street, city, state, zip) {
+  const params = new URLSearchParams({
+    street, city, state, zip,
+    benchmark: 'Public_AR_Current',
+    vintage: 'Current_Current',
+    format: 'json'
+  });
+  try {
+    const res = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/address?${params}`);
+    const data = await res.json();
+    const matches = data?.result?.addressMatches;
+    if (matches && matches.length > 0) {
+      return { lat: matches[0].coordinates.y, lng: matches[0].coordinates.x };
+    }
+  } catch (e) { /* fall through */ }
+  return null;
+}
+
+async function geocodeNominatim(query) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=1&q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch (e) { /* fall through */ }
+  return null;
+}
+
+async function geocodeGoogle(street, city, zip) {
+  const keys = loadKeys();
+  if (!keys.google) return null;
+  const addr = encodeURIComponent(`${street}, ${city}, NY ${zip}`);
+  try {
+    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${addr}&key=${keys.google}`);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const loc = data.results[0].geometry.location;
+      return { lat: loc.lat, lng: loc.lng };
+    }
+  } catch (e) { /* fall through */ }
+  return null;
+}
+
+async function geocode(entry) {
+  const { street, city, zip } = entry;
+  const wait = () => new Promise(r => setTimeout(r, 1100));
+
+  // Strategy 1: Google Geocoding API (if key available — most accurate)
+  let result = await geocodeGoogle(street, city, zip);
+  if (result) return result;
+
+  // Strategy 2: Census Bureau geocoder
+  result = await geocodeCensus(street, city, 'NY', zip);
+  if (result) return result;
+  await wait();
+
+  // Strategy 3: Nominatim structured
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=1&street=${encodeURIComponent(street)}&city=${encodeURIComponent(city)}&state=NY&postalcode=${encodeURIComponent(zip)}`;
+    const res = await fetch(nomUrl);
+    const data = await res.json();
+    if (data.length > 0) result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch (e) {}
+  if (result) return result;
+  await wait();
+
+  // Strategy 4: Nominatim freeform
+  result = await geocodeNominatim(`${street}, ${city}, NY ${zip}`);
+  if (result) return result;
+  await wait();
+
+  // Strategy 5: Approximate by city + zip
+  result = await geocodeNominatim(`${city}, NY ${zip}`);
+  if (result) { result.approximate = true; return result; }
+
+  return null;
+}
+
+// ============================================================
+//  MARKERS & LIST
+// ============================================================
+function clearMarkers() {
+  markers.forEach(m => { if (m) map.removeLayer(m); });
+  markers = [];
+}
+
+let editingIndex = -1;
+
+function renderList() {
+  const list = document.getElementById('addressList');
+  document.getElementById('listHeader').textContent = `Addresses (${entries.length})`;
+  list.innerHTML = entries.map((e, i) => {
+    const hasCoords = e.lat != null;
+    const isEditing = editingIndex === i;
+    return `
+    <div class="address-item" id="item-${i}">
+      <div class="marker-dot" onclick="focusEntry(${i})" style="cursor:pointer">${i + 1}</div>
+      <div class="info">
+        <div class="name" onclick="focusEntry(${i})" style="cursor:pointer">${e.name}</div>
+        <div class="addr" onclick="focusEntry(${i})" style="cursor:pointer">${e.fullAddress}</div>
+        ${e.error ? `<div class="error-badge">⚠ Could not geocode</div>` : ''}
+        ${e.approximate ? `<div style="font-size:11px;color:#e67700;margin-top:2px;">⚠ Approximate location</div>` : ''}
+        ${hasCoords && !isEditing ? `<div class="drag-hint">lat: ${e.lat.toFixed(6)}, lng: ${e.lng.toFixed(6)}</div>` : ''}
+        ${isEditing ? `
+          <div class="edit-form" onclick="event.stopPropagation()">
+            <div class="edit-row">
+              <input type="text" id="edit-lat-${i}" placeholder="Latitude" value="${hasCoords ? e.lat.toFixed(6) : ''}">
+              <input type="text" id="edit-lng-${i}" placeholder="Longitude" value="${hasCoords ? e.lng.toFixed(6) : ''}">
+            </div>
+            <div class="edit-actions">
+              <button class="btn-sm" onclick="saveEdit(${i})">Save</button>
+              <button class="btn-sm" onclick="cancelEdit()">Cancel</button>
+              <button class="btn-sm" onclick="searchAndFillCoords(${i})">Re-geocode</button>
+            </div>
+          </div>
+        ` : `
+          <div class="actions" onclick="event.stopPropagation()">
+            <button class="btn-sm" onclick="startEdit(${i})">Edit Location</button>
+            <button class="btn-sm btn-sm-danger" onclick="removeEntry(${i})">Remove</button>
+          </div>
+        `}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function focusEntry(i) {
+  const e = entries[i];
+  document.querySelectorAll('.address-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(`item-${i}`).classList.add('active');
+  if (e.lat) {
+    map.panTo([e.lat, e.lng]);
+    markers[i]?.openPopup();
+  }
+}
+
+function startEdit(i) { editingIndex = i; renderList(); }
+function cancelEdit() { editingIndex = -1; renderList(); }
+
+function createDraggableMarker(i) {
+  const e = entries[i];
+  const marker = L.marker([e.lat, e.lng], { icon: createNumberedIcon(i + 1), draggable: true })
+    .addTo(map)
+    .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>`);
+  marker.on('dragend', function () {
+    const pos = marker.getLatLng();
+    entries[i].lat = pos.lat;
+    entries[i].lng = pos.lng;
+    entries[i].approximate = false;
+    renderList();
+  });
+  return marker;
+}
+
+function saveEdit(i) {
+  const latVal = parseFloat(document.getElementById(`edit-lat-${i}`).value);
+  const lngVal = parseFloat(document.getElementById(`edit-lng-${i}`).value);
+  if (isNaN(latVal) || isNaN(lngVal)) { alert('Please enter valid numbers for lat and lng.'); return; }
+
+  entries[i].lat = latVal;
+  entries[i].lng = lngVal;
+  entries[i].error = false;
+  entries[i].approximate = false;
+
+  if (markers[i]) map.removeLayer(markers[i]);
+  markers[i] = createDraggableMarker(i);
+
+  editingIndex = -1;
+  renderList();
+  map.setView([latVal, lngVal], 16);
+}
+
+async function searchAndFillCoords(i) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Searching...';
+  const coords = await geocode(entries[i]);
+  if (coords) {
+    document.getElementById(`edit-lat-${i}`).value = coords.lat.toFixed(6);
+    document.getElementById(`edit-lng-${i}`).value = coords.lng.toFixed(6);
+  } else {
+    alert('Geocoding failed. Please enter coordinates manually.');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Re-geocode';
+}
+
+function removeEntry(i) {
+  if (markers[i]) map.removeLayer(markers[i]);
+  markers.splice(i, 1);
+  entries.splice(i, 1);
+  // Re-number remaining markers
+  markers.forEach((m, idx) => {
+    if (m) {
+      map.removeLayer(m);
+      markers[idx] = createDraggableMarker(idx);
+    }
+  });
+  editingIndex = -1;
+  renderList();
+}
+
+// ============================================================
+//  MAIN PROCESS
+// ============================================================
+async function processInput() {
+  const raw = document.getElementById('dataInput').value.trim();
+  if (!raw) return;
+
+  const btn = document.getElementById('plotBtn');
+  btn.disabled = true;
+  btn.textContent = 'Geocoding...';
+  clearMarkers();
+
+  entries = parseInput(raw);
+  renderList();
+
+  const status = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const progressFill = document.getElementById('progressFill');
+  status.classList.add('visible');
+
+  const bounds = [];
+  for (let i = 0; i < entries.length; i++) {
+    statusText.textContent = `Geocoding ${i + 1} of ${entries.length}: ${entries[i].name}`;
+    progressFill.style.width = `${((i + 1) / entries.length) * 100}%`;
+
+    const coords = await geocode(entries[i]);
+    if (coords) {
+      entries[i].lat = coords.lat;
+      entries[i].lng = coords.lng;
+      entries[i].approximate = coords.approximate || false;
+      markers.push(createDraggableMarker(i));
+      bounds.push([coords.lat, coords.lng]);
+    } else {
+      entries[i].error = true;
+      markers.push(null);
+    }
+    renderList();
+
+    if (i < entries.length - 1) await new Promise(r => setTimeout(r, 1100));
+  }
+
+  if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
+
+  const failed = entries.filter(e => e.error).length;
+  const approx = entries.filter(e => e.approximate).length;
+  let msg = `Done! ${bounds.length} plotted`;
+  if (approx) msg += `, ${approx} approximate`;
+  if (failed) msg += `, ${failed} failed`;
+  statusText.textContent = msg;
+  btn.disabled = false;
+  btn.textContent = 'Plot on Map';
+}
+
+function clearAll() {
+  clearMarkers();
+  entries = [];
+  document.getElementById('dataInput').value = '';
+  document.getElementById('addressList').innerHTML = '';
+  document.getElementById('listHeader').textContent = 'Addresses (0)';
+  document.getElementById('status').classList.remove('visible');
+  map.setView([40.7580, -73.8330], 12);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+populateKeyInputs();
+const savedProvider = localStorage.getItem('mapProvider') || 'google';
+document.getElementById('mapProvider').value = savedProvider;
+switchProvider(savedProvider);
+processInput();
+</script>
+</body>
+</html>
