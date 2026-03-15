@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,104 +9,210 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; overflow: hidden; }
 
   /* --- Header --- */
-  .header { background: #1a73e8; color: white; padding: 12px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .header { background: #1a73e8; color: white; padding: 12px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; z-index: 20; position: relative; }
   .header h1 { font-size: 20px; font-weight: 600; }
   .header-controls { display: flex; align-items: center; gap: 10px; }
   .header-controls label { font-size: 12px; font-weight: 500; opacity: 0.9; }
-  .header-controls select {
-    padding: 5px 10px; border-radius: 5px; border: none; font-size: 13px; font-weight: 500;
-    background: rgba(255,255,255,0.2); color: white; cursor: pointer; outline: none;
-  }
+  .header-controls select { padding: 5px 10px; border-radius: 5px; border: none; font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.2); color: white; cursor: pointer; outline: none; }
   .header-controls select option { color: #333; background: white; }
-  .header-controls .btn-settings {
-    padding: 5px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.4);
-    background: transparent; color: white; font-size: 12px; cursor: pointer; font-weight: 500;
-  }
+  .header-controls .btn-settings { padding: 5px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.4); background: transparent; color: white; font-size: 12px; cursor: pointer; font-weight: 500; }
   .header-controls .btn-settings:hover { background: rgba(255,255,255,0.15); }
 
-  /* --- Layout --- */
+  /* --- Main Layout --- */
   .container { display: flex; height: calc(100vh - 52px); }
-  .sidebar { width: 380px; min-width: 380px; background: white; overflow-y: auto; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
 
-  /* --- API Key Settings --- */
+  /* --- Left Panel (addresses + groups columns) --- */
+  .left-panel {
+    width: 420px; min-width: 320px; max-width: 900px; background: white;
+    display: flex; flex-direction: column; flex-shrink: 0; border-right: none;
+  }
+
+  /* --- Resize Handle --- */
+  .resize-handle { width: 6px; cursor: col-resize; background: #e0e0e0; flex-shrink: 0; transition: background 0.15s; position: relative; z-index: 10; }
+  .resize-handle:hover, .resize-handle.active { background: #1a73e8; }
+  .resize-handle::after { content: ''; position: absolute; top: 50%; left: 1px; transform: translateY(-50%); width: 4px; height: 32px; border-radius: 2px; background: rgba(0,0,0,0.15); }
+  .resize-handle:hover::after, .resize-handle.active::after { background: rgba(255,255,255,0.6); }
+
+  /* --- Settings Panel --- */
   .settings-panel { background: #fff8e1; border-bottom: 1px solid #ffe082; display: none; }
   .settings-panel.visible { display: block; }
   .settings-panel .settings-inner { padding: 12px 16px; }
   .settings-panel h3 { font-size: 13px; font-weight: 600; color: #f57f17; margin-bottom: 8px; }
   .settings-panel .key-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
   .settings-panel .key-row label { font-size: 11px; font-weight: 600; color: #555; width: 70px; flex-shrink: 0; }
-  .settings-panel .key-row input {
-    flex: 1; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;
-    font-family: 'SF Mono', 'Consolas', monospace;
-  }
+  .settings-panel .key-row input { flex: 1; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; font-family: 'SF Mono','Consolas',monospace; }
   .settings-panel .key-row input:focus { outline: none; border-color: #1a73e8; }
   .settings-panel .key-hint { font-size: 10px; color: #999; margin-top: 4px; }
-  .settings-panel .btn-save-keys {
-    margin-top: 8px; padding: 5px 14px; border: none; border-radius: 4px;
-    background: #f57f17; color: white; font-size: 12px; font-weight: 600; cursor: pointer;
-  }
+  .settings-panel .btn-save-keys { margin-top: 8px; padding: 5px 14px; border: none; border-radius: 4px; background: #f57f17; color: white; font-size: 12px; font-weight: 600; cursor: pointer; }
   .settings-panel .btn-save-keys:hover { background: #e65100; }
 
   /* --- Input Section --- */
-  .input-section { padding: 16px; border-bottom: 1px solid #eee; }
+  .input-section { padding: 14px 16px; border-bottom: 1px solid #eee; }
   .input-section label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 6px; }
-  .input-section textarea {
-    width: 100%; height: 120px; padding: 10px; border: 1px solid #ccc; border-radius: 6px;
-    font-size: 13px; font-family: 'SF Mono', 'Consolas', monospace; resize: vertical; line-height: 1.5;
-  }
+  .input-section textarea { width: 100%; height: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; font-family: 'SF Mono','Consolas',monospace; resize: vertical; line-height: 1.4; }
   .input-section textarea:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
-  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
-  .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { padding: 7px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
   .btn-primary { background: #1a73e8; color: white; }
   .btn-primary:hover { background: #1557b0; }
   .btn-secondary { background: #f0f2f5; color: #333; border: 1px solid #ccc; }
   .btn-secondary:hover { background: #e2e5e9; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .format-hint { font-size: 11px; color: #888; margin-top: 6px; }
+  .format-hint { font-size: 10px; color: #888; margin-top: 5px; }
 
   /* --- Status --- */
-  .status { padding: 10px 16px; font-size: 12px; color: #666; background: #fafafa; border-bottom: 1px solid #eee; display: none; }
+  .status { padding: 8px 16px; font-size: 11px; color: #666; background: #fafafa; border-bottom: 1px solid #eee; display: none; }
   .status.visible { display: block; }
-  .status .progress-bar { height: 3px; background: #e0e0e0; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .status .progress-bar { height: 3px; background: #e0e0e0; border-radius: 2px; margin-top: 4px; overflow: hidden; }
   .status .progress-fill { height: 100%; background: #1a73e8; border-radius: 2px; transition: width 0.3s; }
 
-  /* --- Address List --- */
-  .list-header { padding: 12px 16px; font-size: 13px; font-weight: 600; color: #555; border-bottom: 1px solid #eee; background: #fafafa; }
-  .address-list { flex: 1; overflow-y: auto; }
+  /* --- Two-Column Area (Addresses | Groups) --- */
+  .columns-area { display: flex; flex: 1; overflow: hidden; }
+
+  /* --- Addresses Column --- */
+  .addr-column { flex: 1; display: flex; flex-direction: column; min-width: 120px; }
+  .addr-column-header { padding: 8px 12px; font-size: 12px; font-weight: 600; color: #555; border-bottom: 1px solid #eee; background: #fafafa; flex-shrink: 0; }
+  .addr-column-list { flex: 1; overflow-y: auto; }
+
+  /* --- Column Resize Handle --- */
+  .col-resize-handle {
+    width: 5px; cursor: col-resize; background: #eee; flex-shrink: 0;
+    transition: background 0.15s; position: relative; display: none;
+  }
+  .col-resize-handle.visible { display: block; }
+  .col-resize-handle:hover, .col-resize-handle.active { background: #1a73e8; }
+  .col-resize-handle::after {
+    content: ''; position: absolute; top: 50%; left: 0.5px; transform: translateY(-50%);
+    width: 4px; height: 24px; border-radius: 2px; background: rgba(0,0,0,0.1);
+  }
+  .col-resize-handle:hover::after, .col-resize-handle.active::after { background: rgba(255,255,255,0.5); }
+
+  /* --- Groups Column --- */
+  .groups-column { width: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; background: #f8f9fc; flex-shrink: 0; }
+  .groups-column.visible { width: 220px; min-width: 140px; }
+  .groups-column-header {
+    padding: 8px 10px; font-size: 12px; font-weight: 600; color: #555; border-bottom: 1px solid #eee;
+    background: #f0f2f5; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .groups-column-header .btn-add-grp {
+    padding: 2px 8px; border: 1px dashed #1a73e8; border-radius: 4px; background: transparent;
+    color: #1a73e8; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .groups-column-header .btn-add-grp:hover { background: #e8f0fe; }
+  .groups-column-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+  /* Toggle button for groups panel */
+  .btn-toggle-groups {
+    padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; background: #f8f8f8;
+    color: #555; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-toggle-groups:hover { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+  .btn-toggle-groups.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+
+  /* --- Address Items --- */
   .address-item {
-    padding: 10px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.1s;
-    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 10px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.15s, box-shadow 0.15s;
+    display: flex; align-items: flex-start; gap: 6px; position: relative;
   }
   .address-item:hover { background: #f5f8ff; }
   .address-item.active { background: #e8f0fe; }
+  .address-item.dragging { opacity: 0.3; background: #e8f0fe; }
+  .address-item.drag-over { background: #f0f5ff; box-shadow: 0 -3px 0 0 #1a73e8; }
+  .drag-handle {
+    width: 16px; display: flex; align-items: center; justify-content: center;
+    cursor: grab; color: #bbb; flex-shrink: 0; margin-top: 4px; user-select: none;
+    padding: 2px; border-radius: 3px; transition: color 0.15s, background 0.15s; font-size: 12px; line-height: 1;
+  }
+  .drag-handle:hover { color: #666; background: #eee; }
+  .drag-handle:active { cursor: grabbing; color: #1a73e8; }
   .address-item .marker-dot {
-    width: 28px; height: 28px; border-radius: 50%; background: #1a73e8; color: white;
-    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
-    flex-shrink: 0; margin-top: 2px;
+    width: 24px; height: 24px; border-radius: 50%; background: #1a73e8; color: white;
+    display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+    flex-shrink: 0; margin-top: 1px;
   }
   .address-item .info { flex: 1; min-width: 0; }
-  .address-item .name { font-size: 14px; font-weight: 600; color: #222; }
-  .address-item .addr { font-size: 12px; color: #666; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .address-item .error-badge { font-size: 11px; color: #d93025; margin-top: 2px; }
-  .address-item .actions { display: flex; gap: 4px; margin-top: 6px; }
+  .address-item .name { font-size: 13px; font-weight: 600; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .address-item .addr { font-size: 11px; color: #666; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .address-item .error-badge { font-size: 10px; color: #d93025; margin-top: 1px; }
+  .address-item .group-badge {
+    display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px;
+    color: white; margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .address-item .actions { display: flex; gap: 3px; margin-top: 4px; }
   .address-item .actions .btn-sm {
-    padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid #ccc;
+    padding: 2px 6px; font-size: 10px; border-radius: 3px; border: 1px solid #ccc;
     background: #f8f8f8; color: #555; cursor: pointer; font-weight: 500;
   }
   .address-item .actions .btn-sm:hover { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
   .address-item .actions .btn-sm.btn-sm-danger:hover { background: #fce8e6; border-color: #d93025; color: #d93025; }
-  .edit-form { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-  .edit-form .edit-row { display: flex; gap: 4px; align-items: center; }
-  .edit-form input {
-    width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;
-    font-family: 'SF Mono', 'Consolas', monospace;
-  }
+  .edit-form { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+  .edit-form .edit-row { display: flex; gap: 3px; align-items: center; }
+  .edit-form input { width: 100%; padding: 3px 5px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px; font-family: 'SF Mono','Consolas',monospace; }
   .edit-form input:focus { outline: none; border-color: #1a73e8; }
-  .edit-form .edit-actions { display: flex; gap: 4px; margin-top: 2px; }
-  .drag-hint { font-size: 10px; color: #999; margin-top: 2px; font-style: italic; }
+  .edit-form .edit-actions { display: flex; gap: 3px; margin-top: 2px; }
+  .drag-hint { font-size: 9px; color: #999; margin-top: 1px; font-style: italic; }
+
+  /* --- Group Cards in Groups Column --- */
+  .group-card {
+    margin: 4px 8px; border: 1px solid #dde3ef; border-radius: 6px; background: white;
+    overflow: hidden; transition: box-shadow 0.15s;
+  }
+  .group-card.drop-target { box-shadow: inset 0 0 0 2px #1a73e8; border-color: #1a73e8; }
+  .group-card-header {
+    display: flex; align-items: center; gap: 6px; padding: 7px 8px; background: #eef3fc;
+    cursor: pointer; user-select: none; transition: background 0.15s; border-bottom: 1px solid #dde3ef;
+  }
+  .group-card-header:hover { background: #dce6f8; }
+  .group-card-header .g-chevron { font-size: 9px; color: #1a73e8; transition: transform 0.2s; width: 12px; text-align: center; flex-shrink: 0; }
+  .group-card-header .g-chevron.collapsed { transform: rotate(-90deg); }
+  .group-card-header .g-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .group-card-header .g-name-wrap { flex: 1; min-width: 0; }
+  .group-card-header .g-name-input {
+    border: none; background: transparent; font-size: 12px; font-weight: 600; color: #1a56a8;
+    width: 100%; outline: none; padding: 1px 3px; border-radius: 2px;
+  }
+  .group-card-header .g-name-input:focus { background: white; box-shadow: 0 0 0 1px #1a73e8; }
+  .group-card-header .g-count { font-size: 10px; color: #888; flex-shrink: 0; }
+  .group-card-header .g-delete {
+    padding: 1px 4px; border: none; border-radius: 3px; background: transparent;
+    color: #bbb; font-size: 13px; cursor: pointer; line-height: 1; transition: all 0.15s;
+  }
+  .group-card-header .g-delete:hover { background: #fce8e6; color: #d93025; }
+  .group-card-body { transition: max-height 0.2s ease; overflow: hidden; }
+  .group-card-body.collapsed { max-height: 0 !important; }
+  .group-card-entry {
+    padding: 4px 8px; font-size: 11px; color: #333; border-bottom: 1px solid #f5f5f5;
+    display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .group-card-entry:last-child { border-bottom: none; }
+  .group-card-entry.ge-dragging { opacity: 0.3; }
+  .group-card-entry.ge-drag-over { box-shadow: 0 -2px 0 0 #1a73e8; }
+  .group-card-entry .ge-drag-handle {
+    cursor: grab; color: #ccc; flex-shrink: 0; font-size: 10px; user-select: none;
+    padding: 0 2px; transition: color 0.15s;
+  }
+  .group-card-entry .ge-drag-handle:hover { color: #666; }
+  .group-card-entry .ge-drag-handle:active { cursor: grabbing; }
+  .group-card-entry .ge-num {
+    width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white;
+  }
+  .group-card-entry .ge-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .group-card-entry .ge-name { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .group-card-entry .ge-address { font-size: 10px; color: #666; overflow: hidden; text-overflow: ellipsis; }
+  .group-card-entry .ge-remove {
+    font-size: 11px; color: #bbb; cursor: pointer; padding: 0 3px; flex-shrink: 0; transition: color 0.15s;
+  }
+  .group-card-entry .ge-remove:hover { color: #d93025; }
+  .group-drop-zone {
+    padding: 10px 8px; text-align: center; color: #aaa; font-size: 11px; font-style: italic;
+    border: 2px dashed #ddd; margin: 6px 8px; border-radius: 5px; transition: all 0.15s;
+  }
+  .group-drop-zone.drop-target { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; }
 
   /* --- Map --- */
   #map { flex: 1; }
@@ -141,46 +248,122 @@
 </div>
 
 <div class="container">
-  <div class="sidebar">
+  <div class="left-panel" id="leftPanel">
+    <!-- Settings -->
     <div class="settings-panel" id="settingsPanel">
       <div class="settings-inner">
         <h3>API Keys</h3>
-        <div class="key-row">
-          <label>Google</label>
-          <input type="text" id="keyGoogle" placeholder="Google Maps API Key">
-        </div>
-        <div class="key-row">
-          <label>MapQuest</label>
-          <input type="text" id="keyMapquest" placeholder="MapQuest API Key">
-        </div>
-        <div class="key-row">
-          <label>Bing</label>
-          <input type="text" id="keyBing" placeholder="Bing Maps API Key">
-        </div>
-        <div class="key-hint">Keys are saved in your browser's local storage. OpenStreetMap needs no key.</div>
+        <div class="key-row"><label>Google</label><input type="text" id="keyGoogle" placeholder="Google Maps API Key"></div>
+        <div class="key-row"><label>MapQuest</label><input type="text" id="keyMapquest" placeholder="MapQuest API Key"></div>
+        <div class="key-row"><label>Bing</label><input type="text" id="keyBing" placeholder="Bing Maps API Key"></div>
+        <div class="key-hint">Keys saved in local storage. OpenStreetMap needs no key.</div>
         <button class="btn-save-keys" onclick="saveKeys()">Save & Apply</button>
       </div>
     </div>
+    <!-- Input -->
     <div class="input-section">
-      <label>Paste addresses (colon-separated entries)</label>
+      <label>Paste addresses (colon-separated)</label>
       <textarea id="dataInput" placeholder="street, city, zip, name: street, city, zip, name: ..."></textarea>
-      <div class="format-hint">Format: <code>street, city, zip, name</code> — entries separated by <code>:</code></div>
+      <div class="format-hint">Format: <code>street, city, zip, name</code> separated by <code>:</code></div>
       <div class="btn-row">
         <button class="btn btn-primary" id="plotBtn" onclick="processInput()">Plot on Map</button>
         <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
       </div>
     </div>
+    <!-- Status -->
     <div class="status" id="status">
       <span id="statusText">Geocoding...</span>
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     </div>
-    <div class="list-header" id="listHeader">Addresses (0)</div>
-    <div class="address-list" id="addressList"></div>
+
+    <!-- Two-column area: Addresses | Groups -->
+    <div class="columns-area">
+      <!-- Addresses Column -->
+      <div class="addr-column">
+        <div class="addr-column-header" style="display:flex; align-items:center; justify-content:space-between;">
+          <span id="addrCount">Addresses (0)</span>
+          <button class="btn-toggle-groups" id="btnToggleGroups" onclick="toggleGroupsPanel()" style="display:none;" >Groups</button>
+        </div>
+        <div class="addr-column-list" id="addressList"></div>
+      </div>
+      <!-- Column Resize Handle -->
+      <div class="col-resize-handle" id="colResizeHandle"></div>
+      <!-- Groups Column -->
+      <div class="groups-column" id="groupsColumn">
+        <div class="groups-column-header">
+          <input class="g-name-input" id="groupsPanelTitle" type="text" value="Groups" style="font-size:12px;font-weight:600;color:#555;width:80px;" onfocus="this.select()" onchange="document.getElementById('btnToggleGroups').textContent=this.value||'Groups'" onkeydown="if(event.key==='Enter')this.blur();">
+          <div style="display:flex;gap:4px;">
+            <button class="btn-add-grp" onclick="addGroup()">+ Add</button>
+            <button class="btn-add-grp" onclick="exportGroupsCSV()">CSV</button>
+          </div>
+        </div>
+        <div class="groups-column-list" id="groupsList"></div>
+      </div>
+    </div>
   </div>
+
+  <div class="resize-handle" id="resizeHandle"></div>
   <div id="map"></div>
 </div>
 
 <script>
+// ============================================================
+//  SIDEBAR RESIZE
+// ============================================================
+(function() {
+  const handle = document.getElementById('resizeHandle');
+  const panel = document.getElementById('leftPanel');
+  let isResizing = false;
+  handle.addEventListener('mousedown', (e) => {
+    isResizing = true; handle.classList.add('active');
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const min = parseInt(getComputedStyle(panel).minWidth);
+    const max = parseInt(getComputedStyle(panel).maxWidth);
+    panel.style.width = Math.max(min, Math.min(max, e.clientX)) + 'px';
+    map.invalidateSize();
+  });
+  document.addEventListener('mouseup', () => {
+    if (!isResizing) return;
+    isResizing = false; handle.classList.remove('active');
+    document.body.style.cursor = ''; document.body.style.userSelect = '';
+    map.invalidateSize();
+  });
+})();
+
+// ============================================================
+//  COLUMN RESIZE (between addresses and groups)
+// ============================================================
+(function() {
+  const colHandle = document.getElementById('colResizeHandle');
+  const groupsCol = document.getElementById('groupsColumn');
+  const columnsArea = document.querySelector('.columns-area');
+  let isColResizing = false;
+
+  colHandle.addEventListener('mousedown', (e) => {
+    isColResizing = true; colHandle.classList.add('active');
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isColResizing) return;
+    const areaRect = columnsArea.getBoundingClientRect();
+    const rightEdge = areaRect.right;
+    const newGroupsWidth = rightEdge - e.clientX - colHandle.offsetWidth;
+    const clamped = Math.max(140, Math.min(areaRect.width - 120, newGroupsWidth));
+    groupsCol.style.width = clamped + 'px';
+    lastGroupsWidth = clamped;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isColResizing) return;
+    isColResizing = false; colHandle.classList.remove('active');
+    document.body.style.cursor = ''; document.body.style.userSelect = '';
+  });
+})();
+
 // ============================================================
 //  MAP SETUP & TILE PROVIDERS
 // ============================================================
@@ -188,481 +371,413 @@ const map = L.map('map').setView([40.7580, -73.8330], 12);
 let currentLayer = null;
 let currentProvider = 'google';
 
-// Read API keys from query string (e.g. ?google_key=XXX&mapquest_key=YYY&bing_key=ZZZ)
 const urlParams = new URLSearchParams(window.location.search);
-const qsKeys = {
-  google: urlParams.get('google_key') || urlParams.get('key') || '',
-  mapquest: urlParams.get('mapquest_key') || '',
-  bing: urlParams.get('bing_key') || ''
-};
+const qsKeys = { google: urlParams.get('google_key') || urlParams.get('key') || '', mapquest: urlParams.get('mapquest_key') || '', bing: urlParams.get('bing_key') || '' };
 
-// Load saved keys (query string takes priority over localStorage)
 function loadKeys() {
-  try {
-    const stored = JSON.parse(localStorage.getItem('mapApiKeys') || '{}');
-    return {
-      google: qsKeys.google || stored.google || '',
-      mapquest: qsKeys.mapquest || stored.mapquest || '',
-      bing: qsKeys.bing || stored.bing || ''
-    };
-  } catch { return { ...qsKeys }; }
+  try { const s = JSON.parse(localStorage.getItem('mapApiKeys') || '{}'); return { google: qsKeys.google||s.google||'', mapquest: qsKeys.mapquest||s.mapquest||'', bing: qsKeys.bing||s.bing||'' }; }
+  catch { return { ...qsKeys }; }
 }
 function saveKeys() {
-  const keys = {
-    google: document.getElementById('keyGoogle').value.trim(),
-    mapquest: document.getElementById('keyMapquest').value.trim(),
-    bing: document.getElementById('keyBing').value.trim()
-  };
-  localStorage.setItem('mapApiKeys', JSON.stringify(keys));
-  localStorage.setItem('mapProvider', currentProvider);
-  switchProvider(currentProvider);
-  toggleSettings();
+  const keys = { google: document.getElementById('keyGoogle').value.trim(), mapquest: document.getElementById('keyMapquest').value.trim(), bing: document.getElementById('keyBing').value.trim() };
+  localStorage.setItem('mapApiKeys', JSON.stringify(keys)); localStorage.setItem('mapProvider', currentProvider);
+  switchProvider(currentProvider); toggleSettings();
 }
-function populateKeyInputs() {
-  const keys = loadKeys();
-  document.getElementById('keyGoogle').value = keys.google || '';
-  document.getElementById('keyMapquest').value = keys.mapquest || '';
-  document.getElementById('keyBing').value = keys.bing || '';
-}
+function populateKeyInputs() { const k = loadKeys(); document.getElementById('keyGoogle').value = k.google||''; document.getElementById('keyMapquest').value = k.mapquest||''; document.getElementById('keyBing').value = k.bing||''; }
 
-// Tile layer factories
-function createOsmLayer() {
-  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  });
-}
+function createOsmLayer() { return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }); }
+function createGoogleLayer() { return L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { subdomains: '0123', attribution: '&copy; Google Maps', maxZoom: 20 }); }
+function createMapquestLayer(k) { if (!k) return null; return L.tileLayer('https://{s}.tile.thunderforest.com/neighbourhood/{z}/{x}/{y}.png?apikey='+k, { subdomains:'abc', attribution:'&copy; Thunderforest', maxZoom:19 }); }
+function createBingLayer(k) { if (!k) return null; return new BingTileLayer(k); }
 
-function createGoogleLayer(apiKey) {
-  // Use Google's tile server; works with or without key for basic road tiles
-  // With key: higher quota. Without key: limited but functional for development.
-  const base = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-  return L.tileLayer(base, {
-    subdomains: '0123',
-    attribution: '&copy; Google Maps',
-    maxZoom: 20
-  });
-}
-
-function createMapquestLayer(apiKey) {
-  if (!apiKey) return null;
-  return L.tileLayer('https://{s}.tile.thunderforest.com/neighbourhood/{z}/{x}/{y}.png?apikey=' + apiKey, {
-    subdomains: 'abc',
-    attribution: '&copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, &copy; OpenStreetMap contributors',
-    maxZoom: 19
-  });
-}
-
-function createBingLayer(apiKey) {
-  if (!apiKey) return null;
-  // Bing Maps tile URL pattern — we fetch the metadata to get the tile URL
-  return new BingTileLayer(apiKey);
-}
-
-// Lightweight Bing Maps tile layer for Leaflet
 class BingTileLayer {
-  constructor(apiKey) {
-    this._apiKey = apiKey;
-    this._layer = null;
-    this._ready = false;
-  }
-  async addTo(map) {
+  constructor(k) { this._apiKey=k; this._layer=null; }
+  async addTo(m) {
     try {
-      const res = await fetch(`https://dev.virtualearth.net/REST/v1/Imagery/Metadata/RoadOnDemand?key=${this._apiKey}&output=json`);
-      const data = await res.json();
-      const resource = data?.resourceSets?.[0]?.resources?.[0];
-      if (!resource) return null;
-      let tileUrl = resource.imageUrl
-        .replace('{subdomain}', '{s}')
-        .replace('{culture}', 'en-US');
-      // Bing uses quadkey, convert from {z}/{x}/{y}
-      this._layer = L.tileLayer(tileUrl, {
-        subdomains: resource.imageUrlSubdomains,
-        attribution: '&copy; Microsoft Bing Maps',
-        maxZoom: 19
-      });
-      // Bing uses quadkey system — override getTileUrl
-      this._layer.getTileUrl = function(coords) {
-        const z = coords.z;
-        const x = coords.x;
-        const y = coords.y;
-        let quadkey = '';
-        for (let i = z; i > 0; i--) {
-          let digit = 0;
-          const mask = 1 << (i - 1);
-          if ((x & mask) !== 0) digit++;
-          if ((y & mask) !== 0) digit += 2;
-          quadkey += digit;
-        }
-        return resource.imageUrl
-          .replace('{subdomain}', resource.imageUrlSubdomains[Math.abs(x + y) % resource.imageUrlSubdomains.length])
-          .replace('{quadkey}', quadkey)
-          .replace('{culture}', 'en-US');
-      };
-      this._layer.addTo(map);
-      return this._layer;
-    } catch (e) {
-      console.error('Bing tile load failed:', e);
-      return null;
-    }
+      const r = await fetch(`https://dev.virtualearth.net/REST/v1/Imagery/Metadata/RoadOnDemand?key=${this._apiKey}&output=json`);
+      const d = await r.json(); const res = d?.resourceSets?.[0]?.resources?.[0]; if (!res) return null;
+      this._layer = L.tileLayer(res.imageUrl.replace('{subdomain}','{s}').replace('{culture}','en-US'), { subdomains:res.imageUrlSubdomains, attribution:'&copy; Bing Maps', maxZoom:19 });
+      this._layer.getTileUrl = function(c) { let q=''; for(let i=c.z;i>0;i--){let d=0;const mk=1<<(i-1);if((c.x&mk)!==0)d++;if((c.y&mk)!==0)d+=2;q+=d;} return res.imageUrl.replace('{subdomain}',res.imageUrlSubdomains[Math.abs(c.x+c.y)%res.imageUrlSubdomains.length]).replace('{quadkey}',q).replace('{culture}','en-US'); };
+      this._layer.addTo(m); return this._layer;
+    } catch(e) { console.error('Bing fail:',e); return null; }
   }
 }
 
-function switchProvider(provider) {
-  currentProvider = provider;
-  document.getElementById('mapProvider').value = provider;
-  localStorage.setItem('mapProvider', provider);
-  const keys = loadKeys();
-
-  // Remove current layer
-  if (currentLayer) {
-    if (currentLayer._layer) map.removeLayer(currentLayer._layer); // Bing wrapper
-    else map.removeLayer(currentLayer);
-    currentLayer = null;
-  }
-  // Remove any warning
-  document.querySelectorAll('.map-key-warning').forEach(el => el.remove());
-
-  if (provider === 'osm') {
-    currentLayer = createOsmLayer().addTo(map);
-  } else if (provider === 'google') {
-    currentLayer = createGoogleLayer(keys.google).addTo(map);
-  } else if (provider === 'mapquest') {
-    if (!keys.mapquest) {
-      showKeyWarning('MapQuest requires an API key. Click "API Keys" to add one. Falling back to OpenStreetMap.');
-      currentLayer = createOsmLayer().addTo(map);
-      return;
-    }
-    currentLayer = createMapquestLayer(keys.mapquest).addTo(map);
-  } else if (provider === 'bing') {
-    if (!keys.bing) {
-      showKeyWarning('Bing Maps requires an API key. Click "API Keys" to add one. Falling back to OpenStreetMap.');
-      currentLayer = createOsmLayer().addTo(map);
-      return;
-    }
-    const bing = createBingLayer(keys.bing);
-    currentLayer = bing;
-    bing.addTo(map);
-  }
+function switchProvider(p) {
+  currentProvider=p; document.getElementById('mapProvider').value=p; localStorage.setItem('mapProvider',p);
+  const k=loadKeys();
+  if(currentLayer){if(currentLayer._layer)map.removeLayer(currentLayer._layer);else map.removeLayer(currentLayer);currentLayer=null;}
+  document.querySelectorAll('.map-key-warning').forEach(el=>el.remove());
+  if(p==='osm'){currentLayer=createOsmLayer().addTo(map);}
+  else if(p==='google'){currentLayer=createGoogleLayer().addTo(map);}
+  else if(p==='mapquest'){if(!k.mapquest){showKeyWarning('MapQuest requires API key.');currentLayer=createOsmLayer().addTo(map);return;}currentLayer=createMapquestLayer(k.mapquest).addTo(map);}
+  else if(p==='bing'){if(!k.bing){showKeyWarning('Bing requires API key.');currentLayer=createOsmLayer().addTo(map);return;}const b=createBingLayer(k.bing);currentLayer=b;b.addTo(map);}
 }
-
-function showKeyWarning(msg) {
-  const el = document.createElement('div');
-  el.className = 'map-key-warning';
-  el.textContent = msg;
-  document.getElementById('map').appendChild(el);
-  setTimeout(() => el.remove(), 5000);
-}
-
-function toggleSettings() {
-  const panel = document.getElementById('settingsPanel');
-  panel.classList.toggle('visible');
-}
+function showKeyWarning(msg){const el=document.createElement('div');el.className='map-key-warning';el.textContent=msg;document.getElementById('map').appendChild(el);setTimeout(()=>el.remove(),5000);}
+function toggleSettings(){document.getElementById('settingsPanel').classList.toggle('visible');}
 
 // ============================================================
-//  MARKERS & DATA
+//  DATA & MARKERS
 // ============================================================
-let markers = [];
-let entries = [];
+let markers=[]; let entries=[];
+document.getElementById('dataInput').value = '';
 
-const defaultData = ``;
-document.getElementById('dataInput').value = defaultData;
-
-function createNumberedIcon(num) {
-  return L.divIcon({
-    className: '',
-    html: `<div class="numbered-icon">${num}</div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -18]
-  });
-}
+function createNumberedIcon(n){return L.divIcon({className:'',html:`<div class="numbered-icon">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-18]});}
 
 function parseInput(raw) {
-  return raw.split(':').map(s => s.trim()).filter(Boolean).map(entry => {
-    const parts = entry.split(',').map(p => p.trim());
-    if (parts.length < 4) return null;
-    const name = parts[parts.length - 1];
-    const zip = parts[parts.length - 2];
-    const city = parts[parts.length - 3];
-    const street = parts.slice(0, parts.length - 3).join(', ');
-    return { street, city, zip, name, fullAddress: `${street}, ${city}, NY ${zip}` };
+  return raw.split(':').map(s=>s.trim()).filter(Boolean).map(entry=>{
+    const p=entry.split(',').map(x=>x.trim()); if(p.length<4) return null;
+    const name=p[p.length-1], zip=p[p.length-2], city=p[p.length-3], street=p.slice(0,p.length-3).join(', ');
+    return {street,city,zip,name,fullAddress:`${street}, ${city}, NY ${zip}`,groupId:null};
   }).filter(Boolean);
 }
 
 // ============================================================
-//  GEOCODING (Census Bureau + Nominatim fallback)
+//  GEOCODING
 // ============================================================
-async function geocodeCensus(street, city, state, zip) {
-  const params = new URLSearchParams({
-    street, city, state, zip,
-    benchmark: 'Public_AR_Current',
-    vintage: 'Current_Current',
-    format: 'json'
+async function geocodeCensus(st,ci,state,zip){
+  try{const r=await fetch(`https://geocoding.geo.census.gov/geocoder/locations/address?${new URLSearchParams({street:st,city:ci,state,zip,benchmark:'Public_AR_Current',vintage:'Current_Current',format:'json'})}`);const d=await r.json();const m=d?.result?.addressMatches;if(m?.length>0)return{lat:m[0].coordinates.y,lng:m[0].coordinates.x};}catch(e){}return null;
+}
+async function geocodeNominatim(q){
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=1&q=${encodeURIComponent(q)}`);const d=await r.json();if(d.length>0)return{lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};}catch(e){}return null;
+}
+async function geocodeGoogle(st,ci,zip){
+  const k=loadKeys();if(!k.google)return null;
+  try{const r=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(`${st}, ${ci}, NY ${zip}`)}&key=${k.google}`);const d=await r.json();if(d.results?.length>0){const l=d.results[0].geometry.location;return{lat:l.lat,lng:l.lng};}}catch(e){}return null;
+}
+async function geocode(e){
+  const{street,city,zip}=e;const w=()=>new Promise(r=>setTimeout(r,1100));
+  let res=await geocodeGoogle(street,city,zip);if(res)return res;
+  res=await geocodeCensus(street,city,'NY',zip);if(res)return res;await w();
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=1&street=${encodeURIComponent(street)}&city=${encodeURIComponent(city)}&state=NY&postalcode=${encodeURIComponent(zip)}`);const d=await r.json();if(d.length>0)res={lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};}catch(e){}
+  if(res)return res;await w();
+  res=await geocodeNominatim(`${street}, ${city}, NY ${zip}`);if(res)return res;await w();
+  res=await geocodeNominatim(`${city}, NY ${zip}`);if(res){res.approximate=true;return res;}return null;
+}
+
+// ============================================================
+//  GROUPS
+// ============================================================
+let groups=[]; let groupIdCounter=0; let groupsPanelVisible=false;
+let lastGroupsWidth=220; // remember width when toggling visibility
+const GROUP_COLORS=['#1a73e8','#e8710a','#0d904f','#9334e6','#d93025','#1e8e8e','#c5221f','#188038','#a142f4','#fa903e'];
+function getGroupColor(gi){return GROUP_COLORS[gi%GROUP_COLORS.length];}
+
+function toggleGroupsPanel(){
+  groupsPanelVisible=!groupsPanelVisible;
+  const groupsCol = document.getElementById('groupsColumn');
+  const colHandle = document.getElementById('colResizeHandle');
+
+  if(groupsPanelVisible){
+    groupsCol.style.width = `${lastGroupsWidth}px`;
+  } else {
+    groupsCol.style.width = '0px';
+  }
+
+  groupsCol.classList.toggle('visible',groupsPanelVisible);
+  colHandle.classList.toggle('visible',groupsPanelVisible);
+  document.getElementById('btnToggleGroups').classList.toggle('active',groupsPanelVisible);
+  setTimeout(()=>map.invalidateSize(),300);
+}
+
+function addGroup(){
+  const id=++groupIdCounter;
+  groups.push({id,name:`Group ${groups.length+1}`,collapsed:false});
+  if(!groupsPanelVisible) toggleGroupsPanel();
+  renderAll();
+}
+function deleteGroup(gid){
+  entries.forEach(e=>{if(e.groupId===gid)e.groupId=null;});
+  groups=groups.filter(g=>g.id!==gid);
+  if(groups.length===0 && groupsPanelVisible) toggleGroupsPanel();
+  renderAll();
+}
+function toggleGroup(gid){const g=groups.find(x=>x.id===gid);if(g)g.collapsed=!g.collapsed;renderGroups();}
+function onGroupNameChange(gid,v){const g=groups.find(x=>x.id===gid);if(g)g.name=v;}
+function removeFromGroup(idx){entries[idx].groupId=null;renderAll();}
+
+function exportGroupsCSV(){
+  const rows=[['Group','Index','Name','Address', 'Note']];
+  groups.forEach(g=>{
+    entries.forEach((e,i)=>{
+      if(e.groupId===g.id) rows.push([g.name,i+1,e.name,e.fullAddress, '']);
+    });
   });
-  try {
-    const res = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/address?${params}`);
-    const data = await res.json();
-    const matches = data?.result?.addressMatches;
-    if (matches && matches.length > 0) {
-      return { lat: matches[0].coordinates.y, lng: matches[0].coordinates.x };
-    }
-  } catch (e) { /* fall through */ }
-  return null;
-}
-
-async function geocodeNominatim(query) {
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=1&q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-  } catch (e) { /* fall through */ }
-  return null;
-}
-
-async function geocodeGoogle(street, city, zip) {
-  const keys = loadKeys();
-  if (!keys.google) return null;
-  const addr = encodeURIComponent(`${street}, ${city}, NY ${zip}`);
-  try {
-    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${addr}&key=${keys.google}`);
-    const data = await res.json();
-    if (data.results && data.results.length > 0) {
-      const loc = data.results[0].geometry.location;
-      return { lat: loc.lat, lng: loc.lng };
-    }
-  } catch (e) { /* fall through */ }
-  return null;
-}
-
-async function geocode(entry) {
-  const { street, city, zip } = entry;
-  const wait = () => new Promise(r => setTimeout(r, 1100));
-
-  // Strategy 1: Google Geocoding API (if key available — most accurate)
-  let result = await geocodeGoogle(street, city, zip);
-  if (result) return result;
-
-  // Strategy 2: Census Bureau geocoder
-  result = await geocodeCensus(street, city, 'NY', zip);
-  if (result) return result;
-  await wait();
-
-  // Strategy 3: Nominatim structured
-  try {
-    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=1&street=${encodeURIComponent(street)}&city=${encodeURIComponent(city)}&state=NY&postalcode=${encodeURIComponent(zip)}`;
-    const res = await fetch(nomUrl);
-    const data = await res.json();
-    if (data.length > 0) result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-  } catch (e) {}
-  if (result) return result;
-  await wait();
-
-  // Strategy 4: Nominatim freeform
-  result = await geocodeNominatim(`${street}, ${city}, NY ${zip}`);
-  if (result) return result;
-  await wait();
-
-  // Strategy 5: Approximate by city + zip
-  result = await geocodeNominatim(`${city}, NY ${zip}`);
-  if (result) { result.approximate = true; return result; }
-
-  return null;
+  entries.forEach((e,i)=>{
+    if(e.groupId==null) rows.push(['',i+1,e.name,e.fullAddress, '']);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='addresses.csv';a.click();URL.revokeObjectURL(a.href);
 }
 
 // ============================================================
-//  MARKERS & LIST
+//  MARKERS
 // ============================================================
-function clearMarkers() {
-  markers.forEach(m => { if (m) map.removeLayer(m); });
-  markers = [];
+function clearMarkers(){markers.forEach(m=>{if(m)map.removeLayer(m);});markers=[];}
+
+let editingIndex=-1;
+
+function createDraggableMarker(i){
+  const e=entries[i];
+  const m=L.marker([e.lat,e.lng],{icon:createNumberedIcon(i+1),draggable:true}).addTo(map)
+    .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>`);
+  m.on('dragend',function(){const p=m.getLatLng();entries[i].lat=p.lat;entries[i].lng=p.lng;entries[i].approximate=false;renderAll();});
+  return m;
 }
 
-let editingIndex = -1;
+// ============================================================
+//  RENDER
+// ============================================================
+function getGroupForEntry(e){if(e.groupId==null)return null;return groups.find(g=>g.id===e.groupId)||null;}
 
-function renderList() {
-  const list = document.getElementById('addressList');
-  document.getElementById('listHeader').textContent = `Addresses (${entries.length})`;
-  list.innerHTML = entries.map((e, i) => {
-    const hasCoords = e.lat != null;
-    const isEditing = editingIndex === i;
-    return `
-    <div class="address-item" id="item-${i}">
-      <div class="marker-dot" onclick="focusEntry(${i})" style="cursor:pointer">${i + 1}</div>
-      <div class="info">
-        <div class="name" onclick="focusEntry(${i})" style="cursor:pointer">${e.name}</div>
-        <div class="addr" onclick="focusEntry(${i})" style="cursor:pointer">${e.fullAddress}</div>
-        ${e.error ? `<div class="error-badge">⚠ Could not geocode</div>` : ''}
-        ${e.approximate ? `<div style="font-size:11px;color:#e67700;margin-top:2px;">⚠ Approximate location</div>` : ''}
-        ${hasCoords && !isEditing ? `<div class="drag-hint">lat: ${e.lat.toFixed(6)}, lng: ${e.lng.toFixed(6)}</div>` : ''}
-        ${isEditing ? `
-          <div class="edit-form" onclick="event.stopPropagation()">
-            <div class="edit-row">
-              <input type="text" id="edit-lat-${i}" placeholder="Latitude" value="${hasCoords ? e.lat.toFixed(6) : ''}">
-              <input type="text" id="edit-lng-${i}" placeholder="Longitude" value="${hasCoords ? e.lng.toFixed(6) : ''}">
-            </div>
-            <div class="edit-actions">
-              <button class="btn-sm" onclick="saveEdit(${i})">Save</button>
-              <button class="btn-sm" onclick="cancelEdit()">Cancel</button>
-              <button class="btn-sm" onclick="searchAndFillCoords(${i})">Re-geocode</button>
-            </div>
+function renderAddressItem(e,i){
+  const hasC=e.lat!=null, isEd=editingIndex===i;
+  const g=getGroupForEntry(e);
+  const gi=g?groups.indexOf(g):-1;
+  const color=g?getGroupColor(gi):null;
+  return `
+  <div class="address-item" id="item-${i}" draggable="true"
+       ondragstart="onDragStart(event,${i})" ondragover="onAddrDragOver(event,${i})"
+       ondragleave="onDragLeave(event)" ondrop="onAddrDrop(event,${i})" ondragend="onDragEnd(event)">
+    <div class="drag-handle" title="Drag to reorder or into a group">&#x2807;</div>
+    <div class="marker-dot" onclick="focusEntry(${i})" style="cursor:pointer">${i+1}</div>
+    <div class="info">
+      <div class="name" onclick="focusEntry(${i})" style="cursor:pointer">${e.name}</div>
+      <div class="addr" onclick="focusEntry(${i})" style="cursor:pointer">${e.fullAddress}</div>
+      ${g?`<span class="group-badge" style="background:${color}">${g.name}</span>`:''}
+      ${e.error?`<div class="error-badge">\u26A0 Could not geocode</div>`:''}
+      ${e.approximate?`<div style="font-size:10px;color:#e67700;margin-top:1px;">\u26A0 Approximate</div>`:''}
+      ${hasC&&!isEd?`<div class="drag-hint">lat: ${e.lat.toFixed(5)}, lng: ${e.lng.toFixed(5)}</div>`:''}
+      ${isEd?`
+        <div class="edit-form" onclick="event.stopPropagation()">
+          <div class="edit-row">
+            <input type="text" id="edit-lat-${i}" placeholder="Lat" value="${hasC?e.lat.toFixed(6):''}">
+            <input type="text" id="edit-lng-${i}" placeholder="Lng" value="${hasC?e.lng.toFixed(6):''}">
           </div>
-        ` : `
-          <div class="actions" onclick="event.stopPropagation()">
-            <button class="btn-sm" onclick="startEdit(${i})">Edit Location</button>
-            <button class="btn-sm btn-sm-danger" onclick="removeEntry(${i})">Remove</button>
+          <div class="edit-actions">
+            <button class="btn-sm" onclick="saveEdit(${i})">Save</button>
+            <button class="btn-sm" onclick="cancelEdit()">Cancel</button>
+            <button class="btn-sm" onclick="searchAndFillCoords(${i})">Re-geocode</button>
           </div>
-        `}
-      </div>
-    </div>`;
+        </div>
+      `:`
+        <div class="actions" onclick="event.stopPropagation()">
+          <button class="btn-sm" onclick="startEdit(${i})">Edit</button>
+          <button class="btn-sm btn-sm-danger" onclick="removeEntry(${i})">Remove</button>
+        </div>
+      `}
+    </div>
+  </div>`;
+}
+
+function renderAddresses(){
+  const list=document.getElementById('addressList');
+  const ungrouped = entries.filter(e=>e.groupId==null);
+  document.getElementById('addrCount').textContent=`Addresses (${ungrouped.length})`;
+  document.getElementById('btnToggleGroups').style.display=entries.length>0?'inline-block':'none';
+
+  if(ungrouped.length===0){
+    list.innerHTML='<div style="padding:12px;text-align:center;color:#aaa;font-size:11px;">No ungrouped addresses. Drag items into a group to organize.</div>';
+    return;
+  }
+
+  list.innerHTML=ungrouped.map((e,i)=>{
+    // Need original index for drag/reorder operations
+    const origIndex = entries.indexOf(e);
+    return renderAddressItem(e, origIndex);
   }).join('');
 }
 
-function focusEntry(i) {
-  const e = entries[i];
-  document.querySelectorAll('.address-item').forEach(el => el.classList.remove('active'));
-  document.getElementById(`item-${i}`).classList.add('active');
-  if (e.lat) {
-    map.panTo([e.lat, e.lng]);
-    markers[i]?.openPopup();
-  }
-}
-
-function startEdit(i) { editingIndex = i; renderList(); }
-function cancelEdit() { editingIndex = -1; renderList(); }
-
-function createDraggableMarker(i) {
-  const e = entries[i];
-  const marker = L.marker([e.lat, e.lng], { icon: createNumberedIcon(i + 1), draggable: true })
-    .addTo(map)
-    .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>`);
-  marker.on('dragend', function () {
-    const pos = marker.getLatLng();
-    entries[i].lat = pos.lat;
-    entries[i].lng = pos.lng;
-    entries[i].approximate = false;
-    renderList();
-  });
-  return marker;
-}
-
-function saveEdit(i) {
-  const latVal = parseFloat(document.getElementById(`edit-lat-${i}`).value);
-  const lngVal = parseFloat(document.getElementById(`edit-lng-${i}`).value);
-  if (isNaN(latVal) || isNaN(lngVal)) { alert('Please enter valid numbers for lat and lng.'); return; }
-
-  entries[i].lat = latVal;
-  entries[i].lng = lngVal;
-  entries[i].error = false;
-  entries[i].approximate = false;
-
-  if (markers[i]) map.removeLayer(markers[i]);
-  markers[i] = createDraggableMarker(i);
-
-  editingIndex = -1;
-  renderList();
-  map.setView([latVal, lngVal], 16);
-}
-
-async function searchAndFillCoords(i) {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Searching...';
-  const coords = await geocode(entries[i]);
-  if (coords) {
-    document.getElementById(`edit-lat-${i}`).value = coords.lat.toFixed(6);
-    document.getElementById(`edit-lng-${i}`).value = coords.lng.toFixed(6);
-  } else {
-    alert('Geocoding failed. Please enter coordinates manually.');
-  }
-  btn.disabled = false;
-  btn.textContent = 'Re-geocode';
-}
-
-function removeEntry(i) {
-  if (markers[i]) map.removeLayer(markers[i]);
-  markers.splice(i, 1);
-  entries.splice(i, 1);
-  // Re-number remaining markers
-  markers.forEach((m, idx) => {
-    if (m) {
-      map.removeLayer(m);
-      markers[idx] = createDraggableMarker(idx);
+function renderGroups(){
+  const gl=document.getElementById('groupsList');
+  if(groups.length===0){gl.innerHTML='<div style="padding:12px;text-align:center;color:#aaa;font-size:11px;">Click "+ Add" to create a group,<br>then drag addresses here.</div>';return;}
+  let h='';
+  groups.forEach((g,gi)=>{
+    const gEntries=[];entries.forEach((e,i)=>{if(e.groupId===g.id)gEntries.push(i);});
+    const color=getGroupColor(gi);const count=gEntries.length;
+    h+=`<div class="group-card ${''}" data-gid="${g.id}"
+          ondragover="onGroupCardDragOver(event,${g.id})" ondragleave="onGroupCardDragLeave(event)"
+          ondrop="onGroupCardDrop(event,${g.id})">`;
+    h+=`<div class="group-card-header" onclick="toggleGroup(${g.id})">`;
+    h+=`<span class="g-chevron ${g.collapsed?'collapsed':''}">\u25BC</span>`;
+    h+=`<span class="g-dot" style="background:${color}"></span>`;
+    h+=`<span class="g-name-wrap" onclick="event.stopPropagation()"><input class="g-name-input" type="text" value="${g.name}" onfocus="this.select()" onchange="onGroupNameChange(${g.id},this.value)" onkeydown="if(event.key==='Enter')this.blur();"></span>`;
+    h+=`<span class="g-count">${count}</span>`;
+    h+=`<button class="g-delete" onclick="event.stopPropagation();deleteGroup(${g.id})" title="Delete">\u00D7</button>`;
+    h+=`</div>`;
+    h+=`<div class="group-card-body ${g.collapsed?'collapsed':''}" style="max-height:${g.collapsed?0:Math.max(count,1)*32+20}px;">`;
+    if(count===0){
+      h+=`<div class="group-drop-zone" ondragover="onZoneDragOver(event,${g.id})" ondragleave="onZoneDragLeave(event)" ondrop="onGroupCardDrop(event,${g.id})">Drop here</div>`;
+    } else {
+      gEntries.forEach((i,pos)=>{
+        const addr = entries[i].fullAddress || '';
+        h+=`<div class="group-card-entry" draggable="true" data-entry-idx="${i}" data-gid="${g.id}"
+              ondragstart="onGeDragStart(event,${i},${g.id})" ondragend="onGeDragEnd(event)"
+              ondragover="onGeDragOver(event,${i},${g.id})" ondragleave="onGeDragLeave(event)"
+              ondrop="onGeDrop(event,${i},${g.id})">
+          <span class="ge-drag-handle">&#x2807;</span>
+          <span class="ge-num" style="background:${color}">${i+1}</span><span class="ge-meta"><span class="ge-name">${entries[i].name}</span><span class="ge-address">${addr}</span></span><span class="ge-remove" onclick="removeFromGroup(${i})" title="Remove from group">\u00D7</span></div>`;
+      });
     }
+    h+=`</div></div>`;
   });
-  editingIndex = -1;
-  renderList();
+  gl.innerHTML=h;
+}
+
+function renderAll(){renderAddresses();renderGroups();}
+
+// ============================================================
+//  FOCUS / EDIT
+// ============================================================
+function focusEntry(i){
+  document.querySelectorAll('.address-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById(`item-${i}`);if(el)el.classList.add('active');
+  if(entries[i].lat){map.panTo([entries[i].lat,entries[i].lng]);markers[i]?.openPopup();}
+}
+function startEdit(i){editingIndex=i;renderAddresses();}
+function cancelEdit(){editingIndex=-1;renderAddresses();}
+function saveEdit(i){
+  const la=parseFloat(document.getElementById(`edit-lat-${i}`).value),lo=parseFloat(document.getElementById(`edit-lng-${i}`).value);
+  if(isNaN(la)||isNaN(lo)){alert('Enter valid lat/lng.');return;}
+  entries[i].lat=la;entries[i].lng=lo;entries[i].error=false;entries[i].approximate=false;
+  if(markers[i])map.removeLayer(markers[i]);markers[i]=createDraggableMarker(i);
+  editingIndex=-1;renderAll();map.setView([la,lo],16);
+}
+async function searchAndFillCoords(i){
+  const btn=event.target;btn.disabled=true;btn.textContent='...';
+  const c=await geocode(entries[i]);
+  if(c){document.getElementById(`edit-lat-${i}`).value=c.lat.toFixed(6);document.getElementById(`edit-lng-${i}`).value=c.lng.toFixed(6);}
+  else alert('Geocoding failed.');
+  btn.disabled=false;btn.textContent='Re-geocode';
+}
+function removeEntry(i){
+  if(markers[i])map.removeLayer(markers[i]);markers.splice(i,1);entries.splice(i,1);
+  markers.forEach((m,idx)=>{if(m){map.removeLayer(m);markers[idx]=createDraggableMarker(idx);}});
+  editingIndex=-1;renderAll();
+}
+
+// ============================================================
+//  DRAG & DROP
+// ============================================================
+let dragFromIndex=-1;
+
+function onDragStart(e,i){
+  dragFromIndex=i;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(i));
+  requestAnimationFrame(()=>{const el=document.getElementById(`item-${i}`);if(el)el.classList.add('dragging');});
+}
+function onDragEnd(){
+  dragFromIndex=-1;
+  document.querySelectorAll('.dragging,.drag-over,.drop-target').forEach(el=>el.classList.remove('dragging','drag-over','drop-target'));
+}
+function onDragLeave(e){e.currentTarget?.classList?.remove('drag-over','drop-target');}
+
+// Drop on another address: reorder + inherit group
+function onAddrDragOver(e,i){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.address-item.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(i!==dragFromIndex){const el=document.getElementById(`item-${i}`);if(el)el.classList.add('drag-over');}
+}
+function onAddrDrop(e,ti){
+  e.preventDefault();e.stopPropagation();
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(dragFromIndex<0||dragFromIndex===ti)return;
+  const [me]=entries.splice(dragFromIndex,1);const adj=dragFromIndex<ti?ti-1:ti;entries.splice(adj,0,me);
+  const [mm]=markers.splice(dragFromIndex,1);markers.splice(adj,0,mm);
+  markers.forEach((m,idx)=>{if(m){map.removeLayer(m);markers[idx]=createDraggableMarker(idx);}});
+  dragFromIndex=-1;editingIndex=-1;renderAll();
+}
+
+// Drop on group card
+function onGroupCardDragOver(e,gid){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.classList.add('drop-target');}
+function onGroupCardDragLeave(e){e.currentTarget.classList.remove('drop-target');}
+function onGroupCardDrop(e,gid){
+  e.preventDefault();e.stopPropagation();e.currentTarget.classList.remove('drop-target');
+  if(dragFromIndex<0)return;
+  entries[dragFromIndex].groupId=gid;
+  const g=groups.find(x=>x.id===gid);if(g&&g.collapsed)g.collapsed=false;
+  dragFromIndex=-1;editingIndex=-1;renderAll();
+}
+
+// Drop on empty zone inside group
+function onZoneDragOver(e,gid){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.classList.add('drop-target');}
+function onZoneDragLeave(e){e.currentTarget.classList.remove('drop-target');}
+
+// Drag & drop within group entries (reorder)
+let geDragIdx=-1, geDragGid=-1;
+function onGeDragStart(e,idx,gid){
+  geDragIdx=idx;geDragGid=gid;
+  e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','ge');
+  requestAnimationFrame(()=>e.target.classList.add('ge-dragging'));
+}
+function onGeDragEnd(e){
+  geDragIdx=-1;geDragGid=-1;
+  document.querySelectorAll('.ge-dragging,.ge-drag-over').forEach(el=>el.classList.remove('ge-dragging','ge-drag-over'));
+}
+function onGeDragOver(e,idx,gid){
+  e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.ge-drag-over').forEach(el=>el.classList.remove('ge-drag-over'));
+  if(idx!==geDragIdx) e.currentTarget.classList.add('ge-drag-over');
+}
+function onGeDragLeave(e){e.currentTarget.classList.remove('ge-drag-over');}
+function onGeDrop(e,targetIdx,gid){
+  e.preventDefault();e.stopPropagation();
+  document.querySelectorAll('.ge-drag-over').forEach(el=>el.classList.remove('ge-drag-over'));
+  if(geDragIdx<0||geDragIdx===targetIdx||entries[geDragIdx].groupId!==gid){geDragIdx=-1;geDragGid=-1;return;}
+  // Remove dragged entry and its marker
+  const [moved]=entries.splice(geDragIdx,1);
+  const [movedMarker]=markers.splice(geDragIdx,1);
+  // Find where targetIdx entry ended up after removal
+  const adjustedTarget=targetIdx>geDragIdx?targetIdx-1:targetIdx;
+  entries.splice(adjustedTarget,0,moved);
+  markers.splice(adjustedTarget,0,movedMarker);
+  // Rebuild marker icons with new indices
+  markers.forEach((m,i)=>{if(m){map.removeLayer(m);markers[i]=createDraggableMarker(i);}});
+  geDragIdx=-1;geDragGid=-1;editingIndex=-1;renderAll();
 }
 
 // ============================================================
 //  MAIN PROCESS
 // ============================================================
-async function processInput() {
-  const raw = document.getElementById('dataInput').value.trim();
-  if (!raw) return;
-
-  const btn = document.getElementById('plotBtn');
-  btn.disabled = true;
-  btn.textContent = 'Geocoding...';
-  clearMarkers();
-
-  entries = parseInput(raw);
-  renderList();
-
-  const status = document.getElementById('status');
-  const statusText = document.getElementById('statusText');
-  const progressFill = document.getElementById('progressFill');
+async function processInput(){
+  const raw=document.getElementById('dataInput').value.trim();if(!raw)return;
+  const btn=document.getElementById('plotBtn');btn.disabled=true;btn.textContent='Geocoding...';
+  clearMarkers();entries=parseInput(raw);groups=[];groupIdCounter=0;
+  if(groupsPanelVisible)toggleGroupsPanel();
+  renderAll();
+  const status=document.getElementById('status'),st=document.getElementById('statusText'),pf=document.getElementById('progressFill');
   status.classList.add('visible');
-
-  const bounds = [];
-  for (let i = 0; i < entries.length; i++) {
-    statusText.textContent = `Geocoding ${i + 1} of ${entries.length}: ${entries[i].name}`;
-    progressFill.style.width = `${((i + 1) / entries.length) * 100}%`;
-
-    const coords = await geocode(entries[i]);
-    if (coords) {
-      entries[i].lat = coords.lat;
-      entries[i].lng = coords.lng;
-      entries[i].approximate = coords.approximate || false;
-      markers.push(createDraggableMarker(i));
-      bounds.push([coords.lat, coords.lng]);
-    } else {
-      entries[i].error = true;
-      markers.push(null);
-    }
-    renderList();
-
-    if (i < entries.length - 1) await new Promise(r => setTimeout(r, 1100));
+  const bounds=[];
+  for(let i=0;i<entries.length;i++){
+    st.textContent=`Geocoding ${i+1}/${entries.length}: ${entries[i].name}`;pf.style.width=`${((i+1)/entries.length)*100}%`;
+    const c=await geocode(entries[i]);
+    if(c){entries[i].lat=c.lat;entries[i].lng=c.lng;entries[i].approximate=c.approximate||false;markers.push(createDraggableMarker(i));bounds.push([c.lat,c.lng]);}
+    else{entries[i].error=true;markers.push(null);}
+    renderAll();
+    if(i<entries.length-1)await new Promise(r=>setTimeout(r,1100));
   }
-
-  if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
-
-  const failed = entries.filter(e => e.error).length;
-  const approx = entries.filter(e => e.approximate).length;
-  let msg = `Done! ${bounds.length} plotted`;
-  if (approx) msg += `, ${approx} approximate`;
-  if (failed) msg += `, ${failed} failed`;
-  statusText.textContent = msg;
-  btn.disabled = false;
-  btn.textContent = 'Plot on Map';
+  if(bounds.length>0)map.fitBounds(bounds,{padding:[40,40]});
+  const fail=entries.filter(e=>e.error).length,approx=entries.filter(e=>e.approximate).length;
+  let msg=`Done! ${bounds.length} plotted`;if(approx)msg+=`, ${approx} approx`;if(fail)msg+=`, ${fail} failed`;
+  st.textContent=msg;btn.disabled=false;btn.textContent='Plot on Map';
 }
 
-function clearAll() {
-  clearMarkers();
-  entries = [];
-  document.getElementById('dataInput').value = '';
-  document.getElementById('addressList').innerHTML = '';
-  document.getElementById('listHeader').textContent = 'Addresses (0)';
+function clearAll(){
+  clearMarkers();entries=[];groups=[];groupIdCounter=0;
+  if(groupsPanelVisible)toggleGroupsPanel();
+  document.getElementById('dataInput').value='';
+  document.getElementById('addressList').innerHTML='';document.getElementById('addrCount').textContent='Addresses (0)';
+  document.getElementById('btnToggleGroups').style.display='none';
   document.getElementById('status').classList.remove('visible');
-  map.setView([40.7580, -73.8330], 12);
+  map.setView([40.7580,-73.8330],12);renderAll();
 }
 
 // ============================================================
 //  INIT
 // ============================================================
 populateKeyInputs();
-const savedProvider = localStorage.getItem('mapProvider') || 'google';
-document.getElementById('mapProvider').value = savedProvider;
+const savedProvider=localStorage.getItem('mapProvider')||'google';
+document.getElementById('mapProvider').value=savedProvider;
 switchProvider(savedProvider);
 processInput();
 </script>
