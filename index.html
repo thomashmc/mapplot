@@ -460,7 +460,7 @@ async function geocode(e){
 // ============================================================
 let groups=[]; let groupIdCounter=0; let groupsPanelVisible=false;
 let lastGroupsWidth=220; // remember width when toggling visibility
-const GROUP_COLORS=['#1a73e8','#e8710a','#0d904f','#9334e6','#d93025','#1e8e8e','#c5221f','#188038','#a142f4','#fa903e'];
+const GROUP_COLORS=['#e8710a','#0d904f','#9334e6','#d93025','#1e8e8e','#c5221f','#188038','#a142f4','#fa903e','#795548'];
 function getGroupColor(gi){return GROUP_COLORS[gi%GROUP_COLORS.length];}
 
 function toggleGroupsPanel(){
@@ -482,7 +482,7 @@ function toggleGroupsPanel(){
 
 function addGroup(){
   const id=++groupIdCounter;
-  groups.push({id,name:`Group ${groups.length+1}`,collapsed:false});
+  groups.push({id,name:`Group ${groups.length+1}`,collapsed:false,order:[]});
   if(!groupsPanelVisible) toggleGroupsPanel();
   renderAll();
 }
@@ -494,13 +494,18 @@ function deleteGroup(gid){
 }
 function toggleGroup(gid){const g=groups.find(x=>x.id===gid);if(g)g.collapsed=!g.collapsed;renderGroups();}
 function onGroupNameChange(gid,v){const g=groups.find(x=>x.id===gid);if(g)g.name=v;}
-function removeFromGroup(idx){entries[idx].groupId=null;renderAll();}
+function removeFromGroup(idx){
+  const g=groups.find(x=>x.id===entries[idx].groupId);
+  if(g) g.order=g.order.filter(i=>i!==idx);
+  entries[idx].groupId=null;renderAll();
+}
 
 function exportGroupsCSV(){
   const rows=[['Group','Index','Name','Address', 'Note']];
   groups.forEach(g=>{
-    entries.forEach((e,i)=>{
-      if(e.groupId===g.id) rows.push([g.name,i+1,e.name,e.fullAddress, '']);
+    let pos=0;
+    g.order.forEach(i=>{
+      if(entries[i]&&entries[i].groupId===g.id) rows.push([g.name,++pos,entries[i].name,entries[i].fullAddress, '']);
     });
   });
   entries.forEach((e,i)=>{
@@ -594,7 +599,7 @@ function renderGroups(){
   if(groups.length===0){gl.innerHTML='<div style="padding:12px;text-align:center;color:#aaa;font-size:11px;">Click "+ Add" to create a group,<br>then drag addresses here.</div>';return;}
   let h='';
   groups.forEach((g,gi)=>{
-    const gEntries=[];entries.forEach((e,i)=>{if(e.groupId===g.id)gEntries.push(i);});
+    const gEntries=g.order.filter(i=>entries[i]&&entries[i].groupId===g.id);
     const color=getGroupColor(gi);const count=gEntries.length;
     h+=`<div class="group-card ${''}" data-gid="${g.id}"
           ondragover="onGroupCardDragOver(event,${g.id})" ondragleave="onGroupCardDragLeave(event)"
@@ -617,7 +622,7 @@ function renderGroups(){
               ondragover="onGeDragOver(event,${i},${g.id})" ondragleave="onGeDragLeave(event)"
               ondrop="onGeDrop(event,${i},${g.id})">
           <span class="ge-drag-handle">&#x2807;</span>
-          <span class="ge-num" style="background:${color}">${i+1}</span><span class="ge-meta"><span class="ge-name">${entries[i].name}</span><span class="ge-address">${addr}</span></span><span class="ge-remove" onclick="removeFromGroup(${i})" title="Remove from group">\u00D7</span></div>`;
+          <span class="ge-num" style="background:#1a73e8">${i+1}</span><span class="ge-num" style="background:${color}">${pos+1}</span><span class="ge-meta"><span class="ge-name">${entries[i].name}</span><span class="ge-address">${addr}</span></span><span class="ge-remove" onclick="removeFromGroup(${i})" title="Remove from group">\u00D7</span></div>`;
       });
     }
     h+=`</div></div>`;
@@ -653,6 +658,10 @@ async function searchAndFillCoords(i){
 }
 function removeEntry(i){
   if(markers[i])map.removeLayer(markers[i]);markers.splice(i,1);entries.splice(i,1);
+  // Update group order arrays: remove deleted index, shift indices above it
+  groups.forEach(g=>{
+    g.order=g.order.filter(idx=>idx!==i).map(idx=>idx>i?idx-1:idx);
+  });
   markers.forEach((m,idx)=>{if(m){map.removeLayer(m);markers[idx]=createDraggableMarker(idx);}});
   editingIndex=-1;renderAll();
 }
@@ -694,8 +703,12 @@ function onGroupCardDragLeave(e){e.currentTarget.classList.remove('drop-target')
 function onGroupCardDrop(e,gid){
   e.preventDefault();e.stopPropagation();e.currentTarget.classList.remove('drop-target');
   if(dragFromIndex<0)return;
+  // Remove from old group's order if moving between groups
+  const oldGid=entries[dragFromIndex].groupId;
+  if(oldGid!=null){const og=groups.find(x=>x.id===oldGid);if(og)og.order=og.order.filter(i=>i!==dragFromIndex);}
   entries[dragFromIndex].groupId=gid;
-  const g=groups.find(x=>x.id===gid);if(g&&g.collapsed)g.collapsed=false;
+  const g=groups.find(x=>x.id===gid);
+  if(g){g.order.push(dragFromIndex);if(g.collapsed)g.collapsed=false;}
   dragFromIndex=-1;editingIndex=-1;renderAll();
 }
 
@@ -724,15 +737,13 @@ function onGeDrop(e,targetIdx,gid){
   e.preventDefault();e.stopPropagation();
   document.querySelectorAll('.ge-drag-over').forEach(el=>el.classList.remove('ge-drag-over'));
   if(geDragIdx<0||geDragIdx===targetIdx||entries[geDragIdx].groupId!==gid){geDragIdx=-1;geDragGid=-1;return;}
-  // Remove dragged entry and its marker
-  const [moved]=entries.splice(geDragIdx,1);
-  const [movedMarker]=markers.splice(geDragIdx,1);
-  // Find where targetIdx entry ended up after removal
-  const adjustedTarget=targetIdx>geDragIdx?targetIdx-1:targetIdx;
-  entries.splice(adjustedTarget,0,moved);
-  markers.splice(adjustedTarget,0,movedMarker);
-  // Rebuild marker icons with new indices
-  markers.forEach((m,i)=>{if(m){map.removeLayer(m);markers[i]=createDraggableMarker(i);}});
+  const g=groups.find(x=>x.id===gid);if(!g){geDragIdx=-1;geDragGid=-1;return;}
+  // Reorder within group's internal order array only — global indices stay the same
+  const fromPos=g.order.indexOf(geDragIdx);
+  const toPos=g.order.indexOf(targetIdx);
+  if(fromPos<0||toPos<0){geDragIdx=-1;geDragGid=-1;return;}
+  g.order.splice(fromPos,1);
+  g.order.splice(toPos,0,geDragIdx);
   geDragIdx=-1;geDragGid=-1;editingIndex=-1;renderAll();
 }
 
