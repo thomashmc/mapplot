@@ -176,6 +176,12 @@
   }
   .group-card-header .g-name-input:focus { background: white; box-shadow: 0 0 0 1px #1a73e8; }
   .group-card-header .g-count { font-size: 10px; color: #888; flex-shrink: 0; }
+  .group-card-header .g-eye {
+    padding: 1px 4px; border: none; border-radius: 3px; background: transparent;
+    color: #888; font-size: 12px; cursor: pointer; line-height: 1; transition: all 0.15s;
+  }
+  .group-card-header .g-eye:hover { background: #e8f0fe; color: #1a73e8; }
+  .group-card-header .g-eye.off { color: #ccc; }
   .group-card-header .g-delete {
     padding: 1px 4px; border: none; border-radius: 3px; background: transparent;
     color: #bbb; font-size: 13px; cursor: pointer; line-height: 1; transition: all 0.15s;
@@ -227,7 +233,7 @@
   }
   .marker-check {
     position: absolute; top: -4px; right: -6px;
-    background: #34a853; color: white; border-radius: 50%;
+    color: white; border-radius: 50%;
     width: 14px; height: 14px; font-size: 9px; line-height: 14px;
     text-align: center; border: 1px solid white; pointer-events: none;
   }
@@ -434,7 +440,7 @@ function toggleSettings(){document.getElementById('settingsPanel').classList.tog
 let markers=[]; let entries=[];
 document.getElementById('dataInput').value = '';
 
-function createNumberedIcon(n,grouped){const check=grouped?'<span class="marker-check">&#10003;</span>':'';return L.divIcon({className:'',html:`<div class="numbered-icon">${n}${check}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-18]});}
+function createNumberedIcon(n,groupColor){const check=groupColor?`<span class="marker-check" style="background:${groupColor}">&#10003;</span>`:'';return L.divIcon({className:'',html:`<div class="numbered-icon">${n}${check}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-18]});}
 
 function parseInput(raw) {
   return raw.split(':').map(s=>s.trim()).filter(Boolean).map(entry=>{
@@ -470,7 +476,7 @@ async function geocode(e){
 // ============================================================
 //  GROUPS
 // ============================================================
-let groups=[]; let groupIdCounter=0; let groupsPanelVisible=false;
+let groups=[]; let groupIdCounter=0; let groupsPanelVisible=false; let groupLines={};
 let lastGroupsWidth=220; // remember width when toggling visibility
 const GROUP_COLORS=['#e8710a','#0d904f','#9334e6','#d93025','#1e8e8e','#c5221f','#188038','#a142f4','#fa903e','#795548'];
 function getGroupColor(gi){return GROUP_COLORS[gi%GROUP_COLORS.length];}
@@ -494,7 +500,7 @@ function toggleGroupsPanel(){
 
 function addGroup(){
   const id=++groupIdCounter;
-  groups.push({id,name:`Group ${groups.length+1}`,collapsed:false,order:[]});
+  groups.push({id,name:`Group ${groups.length+1}`,collapsed:false,order:[],linesVisible:true});
   if(!groupsPanelVisible) toggleGroupsPanel();
   renderAll();
 }
@@ -505,6 +511,7 @@ function deleteGroup(gid){
   renderAll();
 }
 function toggleGroup(gid){const g=groups.find(x=>x.id===gid);if(g)g.collapsed=!g.collapsed;renderGroups();}
+function toggleGroupLines(gid){const g=groups.find(x=>x.id===gid);if(g)g.linesVisible=!g.linesVisible;renderAll();}
 function onGroupNameChange(gid,v){const g=groups.find(x=>x.id===gid);if(g)g.name=v;}
 function removeFromGroup(idx){
   const g=groups.find(x=>x.id===entries[idx].groupId);
@@ -537,7 +544,8 @@ let editingIndex=-1;
 
 function createDraggableMarker(i){
   const e=entries[i];
-  const m=L.marker([e.lat,e.lng],{icon:createNumberedIcon(i+1,e.groupId!=null),draggable:true}).addTo(map)
+  const g=getGroupForEntry(e),gi=g?groups.indexOf(g):-1,gc=g?getGroupColor(gi):null;
+  const m=L.marker([e.lat,e.lng],{icon:createNumberedIcon(i+1,gc),draggable:true}).addTo(map)
     .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>${e.phone?`<div class="popup-addr">${e.phone}</div>`:''}`);
   m.on('dragend',function(){const p=m.getLatLng();entries[i].lat=p.lat;entries[i].lng=p.lng;entries[i].approximate=false;renderAll();});
   return m;
@@ -621,6 +629,7 @@ function renderGroups(){
     h+=`<span class="g-dot" style="background:${color}"></span>`;
     h+=`<span class="g-name-wrap" onclick="event.stopPropagation()"><input class="g-name-input" type="text" value="${g.name}" onfocus="this.select()" onchange="onGroupNameChange(${g.id},this.value)" onkeydown="if(event.key==='Enter')this.blur();"></span>`;
     h+=`<span class="g-count">${count}</span>`;
+    h+=`<button class="g-eye ${g.linesVisible?'':'off'}" onclick="event.stopPropagation();toggleGroupLines(${g.id})" title="Toggle lines">${g.linesVisible?'\u{1F441}':'\u{1F441}\u{200D}\u{1F5E8}'}</button>`;
     h+=`<button class="g-delete" onclick="event.stopPropagation();deleteGroup(${g.id})" title="Delete">\u00D7</button>`;
     h+=`</div>`;
     h+=`<div class="group-card-body ${g.collapsed?'collapsed':''}" style="max-height:${g.collapsed?0:Math.max(count,1)*32+20}px;">`;
@@ -642,8 +651,16 @@ function renderGroups(){
   gl.innerHTML=h;
 }
 
-function updateMarkerIcons(){entries.forEach((e,i)=>{if(markers[i])markers[i].setIcon(createNumberedIcon(i+1,e.groupId!=null));});}
-function renderAll(){renderAddresses();renderGroups();updateMarkerIcons();}
+function updateMarkerIcons(){entries.forEach((e,i)=>{if(markers[i]){const g=getGroupForEntry(e),gi=g?groups.indexOf(g):-1,gc=g?getGroupColor(gi):null;markers[i].setIcon(createNumberedIcon(i+1,gc));}});}
+function updateGroupLines(){
+  Object.values(groupLines).forEach(l=>map.removeLayer(l));groupLines={};
+  groups.forEach((g,gi)=>{
+    if(!g.linesVisible)return;
+    const pts=g.order.filter(i=>entries[i]&&entries[i].groupId===g.id&&entries[i].lat!=null).map(i=>[entries[i].lat,entries[i].lng]);
+    if(pts.length>=2) groupLines[g.id]=L.polyline(pts,{color:getGroupColor(gi),weight:3,opacity:0.6}).addTo(map);
+  });
+}
+function renderAll(){renderAddresses();renderGroups();updateMarkerIcons();updateGroupLines();}
 
 // ============================================================
 //  FOCUS / EDIT
@@ -793,7 +810,7 @@ async function processInput(){
 }
 
 function clearAll(){
-  clearMarkers();entries=[];groups=[];groupIdCounter=0;
+  clearMarkers();Object.values(groupLines).forEach(l=>map.removeLayer(l));groupLines={};entries=[];groups=[];groupIdCounter=0;
   if(groupsPanelVisible)toggleGroupsPanel();
   document.getElementById('dataInput').value='';
   document.getElementById('addressList').innerHTML='';document.getElementById('addrCount').textContent='Addresses (0)';
