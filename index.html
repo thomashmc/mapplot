@@ -264,7 +264,7 @@
     <div class="input-section">
       <label>Paste addresses (colon-separated)</label>
       <textarea id="dataInput" placeholder="street, city, zip, name: street, city, zip, name: ..."></textarea>
-      <div class="format-hint">Format: <code>street, city, zip, name</code> separated by <code>:</code></div>
+      <div class="format-hint">Format: <code>street, city, zip, name, phone</code> separated by <code>:</code></div>
       <div class="btn-row">
         <button class="btn btn-primary" id="plotBtn" onclick="processInput()">Plot on Map</button>
         <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
@@ -426,9 +426,9 @@ function createNumberedIcon(n){return L.divIcon({className:'',html:`<div class="
 
 function parseInput(raw) {
   return raw.split(':').map(s=>s.trim()).filter(Boolean).map(entry=>{
-    const p=entry.split(',').map(x=>x.trim()); if(p.length<4) return null;
-    const name=p[p.length-1], zip=p[p.length-2], city=p[p.length-3], street=p.slice(0,p.length-3).join(', ');
-    return {street,city,zip,name,fullAddress:`${street}, ${city}, NY ${zip}`,groupId:null};
+    const p=entry.split(',').map(x=>x.trim()); if(p.length<5) return null;
+    const phone=p[p.length-1], name=p[p.length-2], zip=p[p.length-3], city=p[p.length-4], street=p.slice(0,p.length-4).join(', ');
+    return {street,city,zip,name,phone,fullAddress:`${street}, ${city}, NY ${zip}`,groupId:null};
   }).filter(Boolean);
 }
 
@@ -501,18 +501,18 @@ function removeFromGroup(idx){
 }
 
 function exportGroupsCSV(){
-  const rows=[['Group','Index','Name','Address', 'Note']];
+  const rows=[['Group','Index','Name','Phone','Address', 'Note']];
   groups.forEach(g=>{
     let pos=0;
     g.order.forEach(i=>{
-      if(entries[i]&&entries[i].groupId===g.id) rows.push([g.name,++pos,entries[i].name,entries[i].fullAddress, '']);
+      if(entries[i]&&entries[i].groupId===g.id) rows.push([g.name,++pos,entries[i].name,entries[i].phone||'',entries[i].fullAddress, '']);
     });
   });
   entries.forEach((e,i)=>{
-    if(e.groupId==null) rows.push(['',i+1,e.name,e.fullAddress, '']);
+    if(e.groupId==null) rows.push(['',i+1,e.name,e.phone||'',e.fullAddress, '']);
   });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='addresses.csv';a.click();URL.revokeObjectURL(a.href);
 }
 
@@ -526,7 +526,7 @@ let editingIndex=-1;
 function createDraggableMarker(i){
   const e=entries[i];
   const m=L.marker([e.lat,e.lng],{icon:createNumberedIcon(i+1),draggable:true}).addTo(map)
-    .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>`);
+    .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>${e.phone?`<div class="popup-addr">${e.phone}</div>`:''}`);
   m.on('dragend',function(){const p=m.getLatLng();entries[i].lat=p.lat;entries[i].lng=p.lng;entries[i].approximate=false;renderAll();});
   return m;
 }
@@ -548,7 +548,7 @@ function renderAddressItem(e,i){
     <div class="drag-handle" title="Drag to reorder or into a group">&#x2807;</div>
     <div class="marker-dot" onclick="focusEntry(${i})" style="cursor:pointer">${i+1}</div>
     <div class="info">
-      <div class="name" onclick="focusEntry(${i})" style="cursor:pointer">${e.name}</div>
+      <div class="name" onclick="focusEntry(${i})" style="cursor:pointer">${e.name}${e.phone?` <span style="font-weight:400;color:#666;font-size:11px;">${e.phone}</span>`:''}</div>
       <div class="addr" onclick="focusEntry(${i})" style="cursor:pointer">${e.fullAddress}</div>
       ${g?`<span class="group-badge" style="background:${color}">${g.name}</span>`:''}
       ${e.error?`<div class="error-badge">\u26A0 Could not geocode</div>`:''}
@@ -622,7 +622,7 @@ function renderGroups(){
               ondragover="onGeDragOver(event,${i},${g.id})" ondragleave="onGeDragLeave(event)"
               ondrop="onGeDrop(event,${i},${g.id})">
           <span class="ge-drag-handle">&#x2807;</span>
-          <span class="ge-num" style="background:#1a73e8">${i+1}</span><span class="ge-num" style="background:${color}">${pos+1}</span><span class="ge-meta"><span class="ge-name">${entries[i].name}</span><span class="ge-address">${addr}</span></span><span class="ge-remove" onclick="removeFromGroup(${i})" title="Remove from group">\u00D7</span></div>`;
+          <span class="ge-num" style="background:#1a73e8">${i+1}</span><span class="ge-num" style="background:${color}">${pos+1}</span><span class="ge-meta"><span class="ge-name">${entries[i].name}${entries[i].phone?` <span style="font-weight:400;color:#888;font-size:10px;">${entries[i].phone}</span>`:''}</span><span class="ge-address">${addr}</span></span><span class="ge-remove" onclick="removeFromGroup(${i})" title="Remove from group">\u00D7</span></div>`;
       });
     }
     h+=`</div></div>`;
