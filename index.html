@@ -251,6 +251,7 @@
       <option value="bing">Bing Maps</option>
     </select>
     <button class="btn-settings" onclick="toggleSettings()">API Keys</button>
+    <button class="btn-settings" onclick="resetGeoCache()">Reset Cache</button>
   </div>
 </div>
 
@@ -391,6 +392,10 @@ function saveKeys() {
   switchProvider(currentProvider); toggleSettings();
 }
 function populateKeyInputs() { const k = loadKeys(); document.getElementById('keyGoogle').value = k.google||''; document.getElementById('keyMapquest').value = k.mapquest||''; document.getElementById('keyBing').value = k.bing||''; }
+
+function loadGeoCache(){try{return JSON.parse(localStorage.getItem('mapGeoCache')||'{}');}catch(e){return {};}}
+function saveGeoCache(cache){localStorage.setItem('mapGeoCache',JSON.stringify(cache));}
+function resetGeoCache(){localStorage.removeItem('mapGeoCache');alert('Geocode cache cleared.');}
 
 function createOsmLayer() { return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }); }
 function createGoogleLayer() { return L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { subdomains: '0123', attribution: '&copy; Google Maps', maxZoom: 20 }); }
@@ -766,15 +771,21 @@ async function processInput(){
   renderAll();
   const status=document.getElementById('status'),st=document.getElementById('statusText'),pf=document.getElementById('progressFill');
   status.classList.add('visible');
-  const bounds=[];
+  const bounds=[],geoCache=loadGeoCache();
   for(let i=0;i<entries.length;i++){
     st.textContent=`Geocoding ${i+1}/${entries.length}: ${entries[i].name}`;pf.style.width=`${((i+1)/entries.length)*100}%`;
-    const c=await geocode(entries[i]);
-    if(c){entries[i].lat=c.lat;entries[i].lng=c.lng;entries[i].approximate=c.approximate||false;markers.push(createDraggableMarker(i));bounds.push([c.lat,c.lng]);}
-    else{entries[i].error=true;markers.push(null);}
+    const cached=geoCache[entries[i].fullAddress];
+    if(cached){
+      entries[i].lat=cached.lat;entries[i].lng=cached.lng;entries[i].approximate=false;markers.push(createDraggableMarker(i));bounds.push([cached.lat,cached.lng]);
+    } else {
+      const c=await geocode(entries[i]);
+      if(c){entries[i].lat=c.lat;entries[i].lng=c.lng;entries[i].approximate=c.approximate||false;markers.push(createDraggableMarker(i));bounds.push([c.lat,c.lng]);if(!c.approximate)geoCache[entries[i].fullAddress]={lat:c.lat,lng:c.lng};}
+      else{entries[i].error=true;markers.push(null);}
+      if(i<entries.length-1)await new Promise(r=>setTimeout(r,1100));
+    }
     renderAll();
-    if(i<entries.length-1)await new Promise(r=>setTimeout(r,1100));
   }
+  saveGeoCache(geoCache);
   if(bounds.length>0)map.fitBounds(bounds,{padding:[40,40]});
   const fail=entries.filter(e=>e.error).length,approx=entries.filter(e=>e.approximate).length;
   let msg=`Done! ${bounds.length} plotted`;if(approx)msg+=`, ${approx} approx`;if(fail)msg+=`, ${fail} failed`;
