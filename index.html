@@ -220,9 +220,16 @@
   .popup-name { font-size: 15px; font-weight: 700; color: #1a73e8; margin-bottom: 4px; }
   .popup-addr { font-size: 13px; color: #444; }
   .numbered-icon {
+    position: relative;
     background: #1a73e8; color: white; border-radius: 50%; width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
     border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .marker-check {
+    position: absolute; top: -4px; right: -6px;
+    background: #34a853; color: white; border-radius: 50%;
+    width: 14px; height: 14px; font-size: 9px; line-height: 14px;
+    text-align: center; border: 1px solid white; pointer-events: none;
   }
   .map-key-warning {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
@@ -422,7 +429,7 @@ function toggleSettings(){document.getElementById('settingsPanel').classList.tog
 let markers=[]; let entries=[];
 document.getElementById('dataInput').value = '';
 
-function createNumberedIcon(n){return L.divIcon({className:'',html:`<div class="numbered-icon">${n}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-18]});}
+function createNumberedIcon(n,grouped){const check=grouped?'<span class="marker-check">&#10003;</span>':'';return L.divIcon({className:'',html:`<div class="numbered-icon">${n}${check}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-18]});}
 
 function parseInput(raw) {
   return raw.split(':').map(s=>s.trim()).filter(Boolean).map(entry=>{
@@ -525,7 +532,7 @@ let editingIndex=-1;
 
 function createDraggableMarker(i){
   const e=entries[i];
-  const m=L.marker([e.lat,e.lng],{icon:createNumberedIcon(i+1),draggable:true}).addTo(map)
+  const m=L.marker([e.lat,e.lng],{icon:createNumberedIcon(i+1,e.groupId!=null),draggable:true}).addTo(map)
     .bindPopup(`<div class="popup-name">${e.name}</div><div class="popup-addr">${e.fullAddress}</div>${e.phone?`<div class="popup-addr">${e.phone}</div>`:''}`);
   m.on('dragend',function(){const p=m.getLatLng();entries[i].lat=p.lat;entries[i].lng=p.lng;entries[i].approximate=false;renderAll();});
   return m;
@@ -630,7 +637,8 @@ function renderGroups(){
   gl.innerHTML=h;
 }
 
-function renderAll(){renderAddresses();renderGroups();}
+function updateMarkerIcons(){entries.forEach((e,i)=>{if(markers[i])markers[i].setIcon(createNumberedIcon(i+1,e.groupId!=null));});}
+function renderAll(){renderAddresses();renderGroups();updateMarkerIcons();}
 
 // ============================================================
 //  FOCUS / EDIT
