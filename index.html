@@ -237,6 +237,44 @@
     width: 14px; height: 14px; font-size: 9px; line-height: 14px;
     text-align: center; border: 1px solid white; pointer-events: none;
   }
+  .star-icon {
+    font-size: 28px; color: #f4b400; text-shadow: 0 0 4px rgba(0,0,0,0.4);
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+  }
+  .start-icon {
+    background: #0d904f; color: white; border-radius: 50%; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;
+    border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .dest-section { padding: 10px 16px; border-bottom: 1px solid #eee; }
+  .dest-section label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 6px; }
+  .dest-row { display: flex; gap: 8px; }
+  .dest-row input { flex: 1; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
+  .dest-row input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+  .ai-section { padding: 10px 16px; border-bottom: 1px solid #eee; }
+  .ai-section label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 6px; }
+  .ai-section .ai-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .ai-section .ai-row label { font-size: 11px; font-weight: 500; color: #555; width: 90px; flex-shrink: 0; margin-bottom: 0; display: flex; align-items: center; }
+  .ai-section .ai-row input, .ai-section .ai-row select { flex: 1; padding: 5px 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 12px; }
+  .ai-section .ai-row input:focus, .ai-section .ai-row select:focus { outline: none; border-color: #1a73e8; }
+  .ai-section textarea { width: 100%; height: 60px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 11px; font-family: 'SF Mono','Consolas',monospace; resize: vertical; line-height: 1.4; }
+  .ai-section textarea:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+  .btn-ai { background: #8e24aa; color: white; }
+  .btn-ai:hover { background: #6a1b80; }
+  .ai-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+  .ai-modal-overlay.visible { display: flex; }
+  .ai-modal { background: white; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); width: 400px; max-width: 90vw; max-height: 80vh; overflow-y: auto; }
+  .ai-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
+  .ai-modal-header span { font-size: 15px; font-weight: 600; color: #333; }
+  .ai-modal-header button { background: none; border: none; font-size: 20px; color: #999; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .ai-modal-header button:hover { color: #333; }
+  .ai-modal-body { padding: 16px; }
+  .ai-modal-body .ai-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .ai-modal-body .ai-row label { font-size: 11px; font-weight: 500; color: #555; width: 90px; flex-shrink: 0; margin-bottom: 0; display: flex; align-items: center; }
+  .ai-modal-body .ai-row input, .ai-modal-body .ai-row select { flex: 1; padding: 5px 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 12px; }
+  .ai-modal-body .ai-row input:focus, .ai-modal-body .ai-row select:focus { outline: none; border-color: #1a73e8; }
+  .ai-modal-body textarea { width: 100%; height: 60px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 11px; font-family: 'SF Mono','Consolas',monospace; resize: vertical; line-height: 1.4; }
+  .ai-modal-body textarea:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
   .map-key-warning {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
     background: #fff3cd; color: #856404; padding: 8px 16px; border-radius: 6px; font-size: 12px;
@@ -274,6 +312,22 @@
         <button class="btn-save-keys" onclick="saveKeys()">Save & Apply</button>
       </div>
     </div>
+    <!-- Start -->
+    <div class="dest-section">
+      <label>Start</label>
+      <div class="dest-row">
+        <input type="text" id="startInput" placeholder="street, city, zip">
+        <button class="btn btn-primary" id="startBtn" onclick="setStart()">Set</button>
+      </div>
+    </div>
+    <!-- Destination -->
+    <div class="dest-section">
+      <label>Destination</label>
+      <div class="dest-row">
+        <input type="text" id="destInput" placeholder="street, city, zip">
+        <button class="btn btn-primary" id="destBtn" onclick="setDestination()">Set</button>
+      </div>
+    </div>
     <!-- Input -->
     <div class="input-section">
       <label>Paste addresses (colon-separated)</label>
@@ -296,7 +350,10 @@
       <div class="addr-column">
         <div class="addr-column-header" style="display:flex; align-items:center; justify-content:space-between;">
           <span id="addrCount">Addresses (0)</span>
-          <button class="btn-toggle-groups" id="btnToggleGroups" onclick="toggleGroupsPanel()" style="display:none;" >Groups</button>
+          <div style="display:flex;gap:4px;">
+            <button class="btn-toggle-groups" id="btnToggleGroups" onclick="toggleGroupsPanel()" style="display:none;" >Groups</button>
+            <button class="btn-toggle-groups" id="btnAiPlanner" onclick="toggleAiModal()" style="display:none;background:#8e24aa;color:white;">AI Planner</button>
+          </div>
         </div>
         <div class="addr-column-list" id="addressList"></div>
       </div>
@@ -318,6 +375,24 @@
 
   <div class="resize-handle" id="resizeHandle"></div>
   <div id="map"></div>
+</div>
+
+<div class="ai-modal-overlay" id="aiModalOverlay" onclick="toggleAiModal()">
+  <div class="ai-modal" onclick="event.stopPropagation()">
+    <div class="ai-modal-header">
+      <span>AI Route Planning</span>
+      <button onclick="toggleAiModal()">&times;</button>
+    </div>
+    <div class="ai-modal-body">
+      <div class="ai-row"><label>Groups</label><input type="number" id="aiGroups" min="1" value="3" placeholder="# of groups"></div>
+      <div class="ai-row"><label>Time / route</label><input type="number" id="aiTime" min="1" value="60" placeholder="minutes"> <span style="font-size:11px;color:#888;margin-left:-4px;">min</span></div>
+      <div class="ai-row"><label>Method</label><select id="aiMethod"><option value="ai">AI Estimate</option><option value="matrix">Distance Matrix</option></select></div>
+      <textarea id="aiContext">you are a route coordinator, you will needs to plan the route from start to destination with multiple stops, each route would consist of x amount of stops and needs to be complete in x amount of time</textarea>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn btn-ai" id="aiPlanBtn" onclick="planRoutes()">Plan Routes</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -433,6 +508,7 @@ function switchProvider(p) {
 }
 function showKeyWarning(msg){const el=document.createElement('div');el.className='map-key-warning';el.textContent=msg;document.getElementById('map').appendChild(el);setTimeout(()=>el.remove(),5000);}
 function toggleSettings(){document.getElementById('settingsPanel').classList.toggle('visible');}
+function toggleAiModal(){document.getElementById('aiModalOverlay').classList.toggle('visible');}
 
 // ============================================================
 //  DATA & MARKERS
@@ -540,6 +616,152 @@ function exportGroupsCSV(){
 // ============================================================
 function clearMarkers(){markers.forEach(m=>{if(m)map.removeLayer(m);});markers=[];}
 
+// ============================================================
+//  START POINT
+// ============================================================
+let startMarker=null;
+let startData=null;
+function createStartIcon(){return L.divIcon({className:'',html:'<div class="start-icon">S</div>',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});}
+async function setStart(){
+  const raw=document.getElementById('startInput').value.trim();if(!raw)return;
+  const btn=document.getElementById('startBtn');btn.disabled=true;btn.textContent='...';
+  const parts=raw.split(',').map(s=>s.trim());
+  const street=parts[0]||'',city=parts[1]||'',zip=parts[2]||'';
+  const addr=`${street}, ${city}, NY ${zip}`;
+  const geoCache=loadGeoCache();
+  let res=geoCache[addr];
+  if(!res){res=await geocode({street,city,zip});if(res&&!res.approximate){geoCache[addr]={lat:res.lat,lng:res.lng};saveGeoCache(geoCache);}}
+  btn.disabled=false;btn.textContent='Set';
+  if(!res){alert('Could not geocode start point.');return;}
+  if(startMarker)map.removeLayer(startMarker);
+  startData={lat:res.lat,lng:res.lng,address:addr};
+  startMarker=L.marker([res.lat,res.lng],{icon:createStartIcon(),draggable:true}).addTo(map)
+    .bindPopup(`<div class="popup-name">Start</div><div class="popup-addr">${addr}</div>`).openPopup();
+  startMarker.on('dragend',function(){const p=startMarker.getLatLng();startData.lat=p.lat;startData.lng=p.lng;updateGroupLines();});
+  map.setView([res.lat,res.lng],14);updateGroupLines();
+  const u=new URL(window.location);u.searchParams.set('start',raw);window.history.replaceState(null,'',u);
+}
+
+// ============================================================
+//  DESTINATION
+// ============================================================
+let destinationMarker=null;
+let destData=null;
+function createStarIcon(){return L.divIcon({className:'',html:'<div class="star-icon">\u2605</div>',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});}
+async function setDestination(){
+  const raw=document.getElementById('destInput').value.trim();if(!raw)return;
+  const btn=document.getElementById('destBtn');btn.disabled=true;btn.textContent='...';
+  const parts=raw.split(',').map(s=>s.trim());
+  const street=parts[0]||'',city=parts[1]||'',zip=parts[2]||'';
+  const addr=`${street}, ${city}, NY ${zip}`;
+  const geoCache=loadGeoCache();
+  let res=geoCache[addr];
+  if(!res){res=await geocode({street,city,zip});if(res&&!res.approximate){geoCache[addr]={lat:res.lat,lng:res.lng};saveGeoCache(geoCache);}}
+  btn.disabled=false;btn.textContent='Set';
+  if(!res){alert('Could not geocode destination.');return;}
+  if(destinationMarker)map.removeLayer(destinationMarker);
+  destData={lat:res.lat,lng:res.lng,address:addr};
+  destinationMarker=L.marker([res.lat,res.lng],{icon:createStarIcon(),draggable:true}).addTo(map)
+    .bindPopup(`<div class="popup-name">Destination</div><div class="popup-addr">${addr}</div>`).openPopup();
+  destinationMarker.on('dragend',function(){const p=destinationMarker.getLatLng();destData.lat=p.lat;destData.lng=p.lng;updateGroupLines();});
+  map.setView([res.lat,res.lng],14);updateGroupLines();
+  const u=new URL(window.location);u.searchParams.set('dest',raw);window.history.replaceState(null,'',u);
+}
+
+// ============================================================
+//  AI ROUTE PLANNING
+// ============================================================
+function haversineDistance(lat1,lng1,lat2,lng2){
+  const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function buildDistanceMatrix(points){
+  const n=points.length,m=[];
+  for(let i=0;i<n;i++){m[i]=[];for(let j=0;j<n;j++)m[i][j]=i===j?0:haversineDistance(points[i].lat,points[i].lng,points[j].lat,points[j].lng);}
+  return m;
+}
+async function planRoutes(){
+  const numGroups=parseInt(document.getElementById('aiGroups').value);
+  const timePerRoute=parseInt(document.getElementById('aiTime').value);
+  const method=document.getElementById('aiMethod').value;
+  const claudeKey=urlParams.get('claude_key');
+  if(!claudeKey){alert('Claude API key missing. Add ?claude_key=... to the URL.');return;}
+  if(!startData){alert('Please set a start point first.');return;}
+  const geocodedEntries=entries.filter(e=>e.lat!=null&&!e.error);
+  if(geocodedEntries.length===0){alert('No geocoded addresses to plan routes for.');return;}
+  if(!numGroups||numGroups<1){alert('Please enter number of groups.');return;}
+  if(!timePerRoute||timePerRoute<1){alert('Please enter time per route.');return;}
+
+  const btn=document.getElementById('aiPlanBtn');btn.disabled=true;btn.textContent='Planning...';
+
+  // Build context with actual values
+  let context=document.getElementById('aiContext').value;
+  context=context.replace(/x amount of stops/g,`approximately ${Math.ceil(geocodedEntries.length/numGroups)} stops`);
+  context=context.replace(/x amount of time/g,`${timePerRoute} minutes`);
+  context=context.replace(/x amount/g,`${numGroups}`);
+
+  // Build entries list
+  let entriesInfo=entries.map((e,i)=>{
+    if(!e.lat||e.error)return null;
+    return `${i}: ${e.name} - ${e.fullAddress} (lat:${e.lat.toFixed(6)}, lng:${e.lng.toFixed(6)})`;
+  }).filter(Boolean).join('\n');
+
+  let userMsg=`Plan ${numGroups} routes, each must be completable within ${timePerRoute} minutes.\n\n`;
+  userMsg+=`Start point: ${startData.address} (lat:${startData.lat.toFixed(6)}, lng:${startData.lng.toFixed(6)})\n`;
+  if(destData)userMsg+=`Destination: ${destData.address} (lat:${destData.lat.toFixed(6)}, lng:${destData.lng.toFixed(6)})\n`;
+  userMsg+=`\nAddresses to assign (index: name - address (coordinates)):\n${entriesInfo}\n`;
+
+  if(method==='matrix'){
+    const allPoints=[{lat:startData.lat,lng:startData.lng,label:'START'}];
+    if(destData)allPoints.push({lat:destData.lat,lng:destData.lng,label:'DEST'});
+    entries.forEach((e,i)=>{if(e.lat&&!e.error)allPoints.push({lat:e.lat,lng:e.lng,label:`${i}`});});
+    const matrix=buildDistanceMatrix(allPoints);
+    const labels=allPoints.map(p=>p.label);
+    userMsg+=`\nDistance matrix (miles) between all points:\n`;
+    userMsg+=`Points: ${labels.join(', ')}\n`;
+    matrix.forEach((row,i)=>{userMsg+=`${labels[i]}: ${row.map(d=>d.toFixed(2)).join(', ')}\n`;});
+  }
+
+  userMsg+=`\nIMPORTANT: Respond with ONLY a single raw JSON object, no markdown, no code fences, no explanation. Format:\n{"groups":[{"name":"Route 1","order":[0,3,5]},{"name":"Route 2","order":[1,2,4]}]}\nwhere "order" contains the entry indices listed above, ordered by visit sequence. Every entry index must appear in exactly one group. Double-check before responding — output only the final correct JSON.`;
+
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4096,system:context,messages:[{role:'user',content:userMsg}]})
+    });
+    if(!resp.ok){const err=await resp.text();throw new Error(`API error ${resp.status}: ${err}`);}
+    const data=await resp.json();
+    const rawText=data.content.map(c=>c.text||'').join('');
+    console.log('Claude raw response:',rawText);
+    // Extract all JSON object candidates and use the last valid one
+    const jsonCandidates=rawText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g)||[];
+    let result=null;
+    for(let i=jsonCandidates.length-1;i>=0;i--){
+      try{const parsed=JSON.parse(jsonCandidates[i]);if(parsed.groups){result=parsed;break;}}catch(e){}
+    }
+    if(!result)throw new Error('No valid JSON found in response');
+    if(!result.groups||!Array.isArray(result.groups))throw new Error('Invalid response format');
+
+    // Apply to group system
+    groups=[];groupIdCounter=0;
+    entries.forEach(e=>e.groupId=null);
+    result.groups.forEach(g=>{
+      const id=++groupIdCounter;
+      const order=g.order.filter(i=>i>=0&&i<entries.length&&entries[i].lat&&!entries[i].error);
+      groups.push({id,name:g.name||`Route ${groups.length+1}`,collapsed:false,order,linesVisible:true});
+      order.forEach(i=>{entries[i].groupId=id;});
+    });
+    if(!groupsPanelVisible)toggleGroupsPanel();
+    toggleAiModal();
+    renderAll();
+  }catch(e){
+    alert('AI planning failed: '+e.message);
+  }
+  btn.disabled=false;btn.textContent='Plan Routes';
+}
+
 let editingIndex=-1;
 
 function createDraggableMarker(i){
@@ -601,6 +823,7 @@ function renderAddresses(){
   const ungrouped = entries.filter(e=>e.groupId==null);
   document.getElementById('addrCount').textContent=`Addresses (${ungrouped.length})`;
   document.getElementById('btnToggleGroups').style.display=entries.length>0?'inline-block':'none';
+  document.getElementById('btnAiPlanner').style.display=entries.length>0?'inline-block':'none';
 
   if(ungrouped.length===0){
     list.innerHTML='<div style="padding:12px;text-align:center;color:#aaa;font-size:11px;">No ungrouped addresses. Drag items into a group to organize.</div>';
@@ -657,6 +880,7 @@ function updateGroupLines(){
   groups.forEach((g,gi)=>{
     if(!g.linesVisible)return;
     const pts=g.order.filter(i=>entries[i]&&entries[i].groupId===g.id&&entries[i].lat!=null).map(i=>[entries[i].lat,entries[i].lng]);
+    if(startData&&destData){pts.unshift([startData.lat,startData.lng]);pts.push([destData.lat,destData.lng]);}
     if(pts.length>=2) groupLines[g.id]=L.polyline(pts,{color:getGroupColor(gi),weight:3,opacity:0.6}).addTo(map);
   });
 }
@@ -810,11 +1034,15 @@ async function processInput(){
 }
 
 function clearAll(){
-  clearMarkers();Object.values(groupLines).forEach(l=>map.removeLayer(l));groupLines={};entries=[];groups=[];groupIdCounter=0;
+  clearMarkers();
+  if(startMarker){map.removeLayer(startMarker);startMarker=null;startData=null;const u=new URL(window.location);u.searchParams.delete('start');window.history.replaceState(null,'',u);}
+  if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;destData=null;const u=new URL(window.location);u.searchParams.delete('dest');window.history.replaceState(null,'',u);}
+  Object.values(groupLines).forEach(l=>map.removeLayer(l));groupLines={};entries=[];groups=[];groupIdCounter=0;
   if(groupsPanelVisible)toggleGroupsPanel();
   document.getElementById('dataInput').value='';
   document.getElementById('addressList').innerHTML='';document.getElementById('addrCount').textContent='Addresses (0)';
   document.getElementById('btnToggleGroups').style.display='none';
+  document.getElementById('btnAiPlanner').style.display='none';
   document.getElementById('status').classList.remove('visible');
   map.setView([40.7580,-73.8330],12);renderAll();
 }
@@ -826,6 +1054,10 @@ populateKeyInputs();
 const savedProvider=localStorage.getItem('mapProvider')||'google';
 document.getElementById('mapProvider').value=savedProvider;
 switchProvider(savedProvider);
+const startParam=urlParams.get('start');
+if(startParam){document.getElementById('startInput').value=startParam;setStart();}
+const destParam=urlParams.get('dest');
+if(destParam){document.getElementById('destInput').value=destParam;setDestination();}
 processInput();
 </script>
 </body>
